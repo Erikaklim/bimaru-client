@@ -1,65 +1,120 @@
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Lib2 (emptyState, gameStart, emptyState, hint)
+import Lib2 (renderDocument, emptyState, gameStart, hint)
 import Lib1 (State(..))
---render document pridet kai bus .yaml
 import Types (Document(..))
 
 main :: IO ()
 main = defaultMain (testGroup "Tests" [
-  -- toYamlTests,
-  -- fromYamlTests,
+  toYamlTests,
   gameStartTests,
   hintTests])
 
--- fromYamlTests :: TestTree
--- fromYamlTests = testGroup "Document from yaml"
---   [   testCase "null" $
---         parseDocument "null" @?= Right DNull
---     -- IMPLEMENT more test cases:
---     -- * other primitive types/values
---     -- * nested types
---   ]
+toYamlTests :: TestTree
+toYamlTests = testGroup "Document to yaml"
+  [   testCase "null" $
+        renderDocument DNull @?= "---\nnull"
+    , testCase "int" $
+        renderDocument (DInteger 5) @?= "---\n5"
+    , testCase "string" $
+        renderDocument (DString "string") @?= "---\nstring"
+    , testCase "list of ints" $
+        renderDocument (DList [DInteger 5, DInteger 6, DInteger 7]) @?= listOfInts
+    , testCase "list of strings" $
+        renderDocument (DList [DString "string1", DString "string2"]) @?= listOfStrings
+    , testCase "list of lists" $
+        renderDocument (DList [ DString "string1", DList[DInteger 2, DString "string2"] ,DList[DInteger 3, DInteger 4]]) @?= listOfLists
+    , testCase "list of lists of lists" $
+        renderDocument (DList [DInteger 1, DList[DInteger 8, DList[DString "string", DInteger 5], DInteger 6]]) @?= listOfListsOfLists
+    , testCase "map" $
+        renderDocument (DMap [("key1", DInteger 3), ("key2", DString "string")]) @?= mapYaml
+    , testCase "list of maps" $
+        renderDocument (DList [DInteger 4, DMap [("key1", DInteger 3), ("key2", DString "string1")] ,DMap [("key3", DInteger 5), ("key4", DString "string2")]]) @?= listOfMaps
+    , testCase "map of list" $
+        renderDocument (DMap[("key1", DList[DInteger 1, DInteger 2]), ("key2", DInteger 5)]) @?= mapOfList
+    , testCase "map of map" $
+        renderDocument (DMap[("key1", DMap[("key1.1", DInteger 4), ("key1.2", DList[DInteger 3, DInteger 7])]), ("key2", DString "string")]) @?= mapOfMap
+  ]
 
--- toYamlTests :: TestTree
--- toYamlTests = testGroup "Document to yaml"
---   [   testCase "null" $
---         renderDocument DNull @?= "null"
---     , testCase "int" $
---         renderDocument (DInteger 5) @?= "5"
---     , testCase "string" $
---         renderDocument (DString "string") @?= "string"
---     , testCase "list of ints" $
---         renderDocument (DList [DInteger 5, DInteger 6]) @?= listOfInts
---     ,testCase "list of strings" $
---         renderDocument (DList [DString "string1", DString "string2"]) @? =
---     -- IMPLEMENT more test cases:
---     -- * other primitive types/values
---     -- * nested types
---   ]
+listOfInts :: String
+listOfInts = unlines [
+      "---"
+    , "- 5"
+    , "- 6"
+    , "- 7"
+  ]
 
--- listOfInts :: String
--- listOfInts = unlines [
---       "---"
---     , "- 5"
---     , "- 6"
---   ]
+listOfStrings :: String
+listOfStrings = unlines [
+      "---"
+    , "- string1"
+    , "- string2"
+ ]
 
--- listOfStrings :: String
--- listOfStrings = unlines []
+listOfLists :: String
+listOfLists = unlines [
+      "---"
+    , "- string1"
+    , "-"
+    , "  - 2"
+    , "  - string2"
+    , "-"
+    , "  - 3"
+    , "  - 4"
+ ]
 
--- map :: String
--- map = unlines []
+listOfListsOfLists :: String
+listOfListsOfLists = unlines [
+      "---"
+    , "- 1"
+    , "-"
+    , "  - 8"
+    , "  -"
+    , "    - string"
+    , "    - 5"
+    , "  - 6"
+ ]
 
--- listOfMaps :: String
--- listOfMaps = unlines []
+mapYaml :: String
+mapYaml = unlines [
+       "---"
+     , "key1: 3"
+     , "key2: string"
+  ]
+ 
+listOfMaps :: String
+listOfMaps = unlines [
+      "---"
+    , "- 4"
+    , "-"
+    , "  key1: 3"
+    , "  key2: string1"
+    , "-"
+    , "  key3: 5"
+    , "  key4: string2"
+ ]
 
--- listOfLists :: String
--- listOfLists = unlines []
+mapOfList :: String
+mapOfList = unlines [
+      "---"
+    , "key1:"
+    , "  - 1"
+    , "  - 2"
+    , "key2: 5"   
+ ]
 
--- listOfListsOfLists :: String
--- listOfStrings = unlines []
+mapOfMap :: String
+mapOfMap = unlines [
+      "---"
+    , "key1:"
+    , "  key1.1: 4"
+    , "  key1.2:"
+    , "    - 3"
+    , "    - 7"
+    , "key2: string"
+ ]
+
 
 gameStartTests :: TestTree
 gameStartTests = testGroup "Test start document"

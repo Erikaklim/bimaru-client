@@ -11,15 +11,18 @@ module Lib2(
     State(..), emptyState, gameStart, render, mkCheck, toggle, hint, renderDocument
 ) where
 
+import System.IO
 import Types
-    ( Document(DInteger, DList, DNull, DMap), Coord(..), Check(..), ToDocument(..))
+    ( Document(DInteger, DString, DList, DNull, DMap), Coord(..), Check(..), ToDocument(..))
 
+import Data.Char
 import Lib1(State(..))
 instance ToDocument Check where
   toDocument (Check c) = DMap [("coords", DList $ map toDocument c)]
 
 instance ToDocument Coord where
     toDocument (Coord c r) = DMap [("col", DInteger c), ("row", DInteger r)] 
+
 
 -- This is a state of your game.
 -- It must contain all values you might need during a game:
@@ -187,7 +190,33 @@ makeSpace (h : t) rez =
     _ -> makeSpace t (h : rez)
 makeSpace "" rez = rez
 
-
--- laikinai
 renderDocument :: Document -> String
-renderDocument d = "String"
+renderDocument d = "---\n" ++ renderDocumentf d
+
+renderDocumentf :: Document -> String
+renderDocumentf (DMap a) = (renderDMap (DMap a) 0)
+renderDocumentf (DList a) = (renderDList (DList a) 0)
+renderDocumentf doc = baseTypes doc 
+
+baseTypes :: Document -> String
+baseTypes doc = case doc of
+    DNull -> "null" 
+    DInteger a -> show a ++ ""
+    DString str -> str ++ ""
+
+getTabs :: Int -> String
+getTabs n 
+    | n < 1 = ""
+    | otherwise = "  " ++ getTabs (n-1)
+
+renderDMap :: Document -> Int -> String
+renderDMap (DMap []) _ = ""
+renderDMap (DMap ((str, (DList h)):t)) n = (getTabs n ++ str ++ ":\n") ++ (renderDList (DList h) (n+1)) ++ renderDMap (DMap t) n 
+renderDMap (DMap ((str, (DMap h)):t)) n = (getTabs n ++ str ++ ":\n") ++ (renderDMap (DMap h) (n+1)) ++ renderDMap (DMap t) n
+renderDMap (DMap ((str, doc):t)) n = (getTabs n ++ str ++ ": " ++ baseTypes doc ++ "\n") ++ renderDMap (DMap t) n
+
+renderDList :: Document -> Int -> String
+renderDList (DList []) _ = ""
+renderDList (DList ((DList h): t)) n = (getTabs n ++ "-\n") ++ (renderDList (DList h) (n+1)) ++ renderDList (DList t) n 
+renderDList (DList ((DMap h): t)) n = (getTabs n ++ "-\n") ++ (renderDMap (DMap h) (n+1)) ++ renderDList (DList t) n
+renderDList (DList (h:t)) n = (getTabs n ++ "- " ++ baseTypes h ++ "\n") ++ renderDList (DList t) n
