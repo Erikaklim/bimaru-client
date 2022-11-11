@@ -201,8 +201,8 @@ renderDocumentf doc = baseTypes doc
 baseTypes :: Document -> String
 baseTypes doc = case doc of
     DNull -> "null" 
-    DInteger a -> show a ++ ""
-    DString str -> str ++ ""
+    DInteger a -> show a
+    DString str -> str
 
 getTabs :: Int -> String
 getTabs n 
