@@ -15,7 +15,7 @@ import Data.List.Split as S ( splitOn )
 import Data.Yaml as Y ( decodeThrow )
 import Data.Char (isSpace)
 import Lib1 ( emptyState, mkCheck, render, toggle, State )
-import Lib2 ( renderDocument, hint, gameStart )
+import Lib2 ( renderDocument, hint, gameStart)
 import Types(Check, toDocument)
 import Network.Wreq
     ( post, postWith, defaults, header, responseBody )

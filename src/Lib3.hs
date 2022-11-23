@@ -4,11 +4,16 @@ module Lib3(hint, gameStart, parseDocument, GameStart, Hint) where
 
 import Types ( Document, FromDocument, fromDocument )
 import Lib1 (State(..))
+import Data.Aeson.Types (parse)
 
 -- IMPLEMENT
 -- Parses a document from yaml
 parseDocument :: String -> Either String Document
-parseDocument _ = Left "Implement me"
+parseDocument s = s
+parseDocument _ = Left "Given value is not a String"
+
+parseDocumentf :: String -> Either String Document
+parseDocumentf _ = Left "Given value is not a String"
 
 -- IMPLEMENT
 -- Change right hand side as you wish
