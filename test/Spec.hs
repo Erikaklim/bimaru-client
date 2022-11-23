@@ -4,13 +4,14 @@ import Test.Tasty.QuickCheck
 import Data.String.Conversions
 import Data.Yaml as Y ( encode )
 
---import Lib3 (parseDocument)
+import Lib3 (parseDocument)
 import Lib2 (renderDocument, emptyState, gameStart, hint)
 import Lib1 (State(..))
 import Types (Document(..))
 
 main :: IO ()
 main = defaultMain (testGroup "Tests" [
+  fromYamlTests,
   toYamlTests,
   gameStartTests,
   hintTests])
