@@ -5,8 +5,10 @@ import Control.Monad.Trans.Class(lift)
 import Control.Monad.Trans.State.Strict
     ( evalStateT, get, modify, put, StateT )
 import Data.ByteString as B ( empty, ByteString )
+import Data.ByteString.Lazy as BSL ( toStrict )
 import Data.Either as E (fromRight)
 import qualified Data.List as L
+import Data.Yaml as Y ( decodeThrow )
 import Data.Text as T ( concat, drop, pack, unpack, Text )
 import Data.Text.Encoding.Base64 (decodeBase64)
 import Data.Text.IO as TIO ( hPutStrLn, putStrLn )
@@ -81,14 +83,22 @@ check c = do
   resp <- liftIO $ postWith opts (url ++ "/check") body
   pure $ cs $ resp ^. responseBody
 
+-- hints :: Int -> Repl ()
+-- hints n = do
+--   (url, s) <- lift get
+--   r <- liftIO $ Wreq.get (url ++ "/hint?limit=" ++ show n)
+--   let h = Lib3.parseDocument (cs (r ^. responseBody)) >>= fromDocument
+--   case (h :: Either String Lib3.Hint) of
+--     Left msg -> liftIO $ fatal $ cs msg
+--     Right d -> lift $ put (url, Lib3.hint s d)
 hints :: Int -> Repl ()
 hints n = do
   (url, s) <- lift get
   r <- liftIO $ Wreq.get (url ++ "/hint?limit=" ++ show n)
-  let h = Lib3.parseDocument (cs (r ^. responseBody)) >>= fromDocument
-  case (h :: Either String Lib3.Hint) of
+  d <- liftIO $ Y.decodeThrow $ BSL.toStrict $ r ^. responseBody
+  case Lib3.hint s d of
+    Right state -> lift $ put (url, state)
     Left msg -> liftIO $ fatal $ cs msg
-    Right d -> lift $ put (url, Lib3.hint s d)
 
 -- Tab Completion: return a completion for partial words entered
 completer :: Monad m => WordCompleter m
@@ -96,16 +106,26 @@ completer n = do
   let names = [commandShow, commandHint, commandCheck, commandToggle]
   return $ Prelude.filter (L.isPrefixOf n) names
 
+-- ini :: Repl ()
+-- ini = do
+--   (url, s) <- lift get
+--   r <- liftIO $ post url B.empty
+--   let gs = Lib3.parseDocument (cs (r ^. responseBody)) >>= fromDocument
+--   case (gs :: Either String Lib3.GameStart) of
+--     Left msg -> liftIO $ fatal $ cs msg
+--     Right d -> do
+--       lift $ put (url, Lib3.gameStart s d)
+--       liftIO $ TIO.putStrLn "Welcome to Bimaru v3. Press [TAB] for available commands list"
 ini :: Repl ()
 ini = do
   (url, s) <- lift get
   r <- liftIO $ post url B.empty
-  let gs = Lib3.parseDocument (cs (r ^. responseBody)) >>= fromDocument
-  case (gs :: Either String Lib3.GameStart) of
+  d <- liftIO $ Y.decodeThrow $ BSL.toStrict $ r ^. responseBody
+  case Lib3.gameStart s d of
+    Right state -> do
+      lift $ put (url, state)
+      liftIO $ TIO.putStrLn "Welcome to Bimaru v2. Press [TAB] for available commands list"
     Left msg -> liftIO $ fatal $ cs msg
-    Right d -> do
-      lift $ put (url, Lib3.gameStart s d)
-      liftIO $ TIO.putStrLn "Welcome to Bimaru v3. Press [TAB] for available commands list"
 
 fatal :: Text -> IO ()
 fatal msg = do
