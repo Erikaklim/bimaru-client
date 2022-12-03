@@ -190,6 +190,8 @@ makeSpace (h : t) rez =
     _ -> makeSpace t (h : rez)
 makeSpace "" rez = rez
 
+
+
 renderDocument :: Document -> String
 renderDocument d = "---\n" ++ renderDocumentf d
 

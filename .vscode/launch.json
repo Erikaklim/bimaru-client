@@ -1,0 +1,49 @@
+{
+    // atuomatically created by phoityne-vscode
+  
+    "version": "2.0.0",
+    "presentation": {
+      "reveal": "always",
+      "panel": "new"
+    },
+    "tasks": [
+      {
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "label": "stack build",
+        "type": "shell",
+        "command": "stack build"
+        // for windows.
+        // "command": "chcp 65001 && stack build"
+        //
+        // for powershell.
+        // "command": "chcp 65001 ; stack build"
+        //
+        // for cabal.
+        // "command": "cabal build"
+      },
+      {
+        "group": "build",
+        "type": "shell",
+        "label": "stack clean & build",
+        "command": "cd ${workspaceFolder} && stack clean && stack build"
+      },
+      {
+        "group": {
+          "kind": "test",
+          "isDefault": true
+        },
+        "type": "shell",
+        "label": "stack test",
+        "command": "stack test"
+      },
+      {
+        "isBackground": true,
+        "type": "shell",
+        "label": "stack watch",
+        "command": "stack build --test --no-run-tests --file-watch"
+      }
+    ]
+  }

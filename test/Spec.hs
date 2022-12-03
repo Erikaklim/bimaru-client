@@ -1,15 +1,41 @@
 import Test.Tasty
 import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck
+import Data.String.Conversions
+import Data.Yaml as Y (  encodeWith, defaultEncodeOptions, defaultFormatOptions, setWidth, setFormat )
 
+import Lib3 (parseDocument)
 import Lib2 (renderDocument, emptyState, gameStart, hint)
 import Lib1 (State(..))
 import Types (Document(..))
 
 main :: IO ()
 main = defaultMain (testGroup "Tests" [
+  fromYamlTests,
   toYamlTests,
   gameStartTests,
-  hintTests])
+  hintTests,
+  properties])
+
+properties :: TestTree
+properties = testGroup "Properties" [golden, dogfood]
+
+friendlyEncode :: Document -> String
+friendlyEncode doc = cs (Y.encodeWith (setFormat (setWidth Nothing defaultFormatOptions) defaultEncodeOptions) doc)
+
+golden :: TestTree
+golden = testGroup "Handles foreign rendering"
+  [
+    testProperty "parseDocument (Data.Yaml.encode doc) == doc" $
+      \doc -> parseDocument (friendlyEncode doc) == Right doc
+  ]
+
+dogfood :: TestTree
+dogfood = testGroup "Eating your own dogfood"
+  [  
+    testProperty "parseDocument (renderDocument doc) == doc" $
+      \doc -> parseDocument (renderDocument doc) == Right doc
+  ]
 
 toYamlTests :: TestTree
 toYamlTests = testGroup "Document to yaml"
@@ -27,6 +53,8 @@ toYamlTests = testGroup "Document to yaml"
         renderDocument (DList [ DString "string1", DList[DInteger 2, DString "string2"] ,DList[DInteger 3, DInteger 4]]) @?= listOfLists
     , testCase "list of lists of lists" $
         renderDocument (DList [DInteger 1, DList[DInteger 8, DList[DString "string", DInteger 5], DInteger 6]]) @?= listOfListsOfLists
+    , testCase "list of lists of lists of lists" $
+        renderDocument (DList [DInteger 1, DList[DInteger 8, DList[DString "string", DInteger 5, DList [DInteger 7]], DInteger 6]]) @?= listOfListsOfListsOfLists
     , testCase "map" $
         renderDocument (DMap [("key1", DInteger 3), ("key2", DString "string")]) @?= mapYaml
     , testCase "list of maps" $
@@ -36,6 +64,35 @@ toYamlTests = testGroup "Document to yaml"
     , testCase "map of map" $
         renderDocument (DMap[("key1", DMap[("key1.1", DInteger 4), ("key1.2", DList[DInteger 3, DInteger 7])]), ("key2", DString "string")]) @?= mapOfMap
   ]
+
+fromYamlTests :: TestTree
+fromYamlTests = testGroup "Document from yaml"
+  [   testCase "null" $
+        getRight(parseDocument "---\nnull") @?= DNull
+    , testCase "int" $
+        getRight(parseDocument "---\n5") @?= DInteger 5
+    , testCase "string" $
+        getRight(parseDocument "---\nstring") @?= DString "string"
+    , testCase "list of ints" $
+        getRight(parseDocument listOfInts) @?= DList [DInteger 5, DInteger 6, DInteger 7]
+    , testCase "list of strings" $
+        getRight(parseDocument listOfStrings) @?= DList [DString "string1", DString "string2"]
+    , testCase "list of lists" $
+        getRight(parseDocument listOfLists) @?= DList [ DString "string1", DList[DInteger 2, DString "string2"] ,DList[DInteger 3, DInteger 4]]
+    , testCase "list of lists of lists" $
+        getRight(parseDocument listOfListsOfLists) @?= DList [DInteger 1, DList[DInteger 8, DList[DString "string", DInteger 5], DInteger 6]]
+    , testCase "map" $
+        getRight(parseDocument mapYaml) @?= DMap [("key1", DInteger 3), ("key2", DString "string")]
+    , testCase "list of maps" $
+        getRight(parseDocument listOfMaps) @?= DList [DInteger 4, DMap [("key1", DInteger 3), ("key2", DString "string1")] ,DMap [("key3", DInteger 5), ("key4", DString "string2")]]
+    , testCase "map of lists" $
+        getRight(parseDocument mapOfList) @?= DMap[("key1", DList[DInteger 1, DInteger 2]), ("key2", DInteger 5)]
+    , testCase "map of map" $
+        getRight(parseDocument mapOfMap) @?= DMap[("key1", DMap[("key1.1", DInteger 4), ("key1.2", DList[DInteger 3, DInteger 7])]), ("key2", DString "string")]
+    -- IMPLEMENT more test cases:
+    -- * other primitive types/values
+    -- * nested types
+   ]
 
 listOfInts :: String
 listOfInts = unlines [
@@ -73,6 +130,20 @@ listOfListsOfLists = unlines [
     , "  -"
     , "    - string"
     , "    - 5"
+    , "  - 6"
+ ]
+
+listOfListsOfListsOfLists :: String
+listOfListsOfListsOfLists = unlines [
+      "---"
+    , "- 1"
+    , "-"
+    , "  - 8"
+    , "  -"
+    , "    - string"
+    , "    - 5"
+    , "    -"
+    , "      - 7"
     , "  - 6"
  ]
 
