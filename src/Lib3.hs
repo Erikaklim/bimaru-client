@@ -172,10 +172,11 @@ data GameStart = GameStart State
   deriving (Show, Eq)
 
 instance FromDocument GameStart where
-  fromDocument doc = do
-    cords <- makeCords doc ([0],[0])
-    tuple <- makeTuple cords 'x' []
-    return (GameStart (Cord (tuple)))
+  fromDocument doc =case makeCords doc ([0],[0]) of
+    Left str -> Left str
+    Right cords -> case makeTuple cords 'x' [] of
+        Left str -> Left str
+        Right tuple -> Right (GameStart (Cord (tuple)))
 
 
 -- This adds game data to initial state
