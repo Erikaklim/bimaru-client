@@ -12,8 +12,8 @@ module Lib3(hint, gameStart, parseDocument, GameStart, Hint) where
 
 import Text.Read
 import Data.Char
-import Types ( Document (DNull, DList, DInteger, DMap, DString) )
-import Lib1 (State(..))
+import Types ( Document (DNull, DList, DInteger, DMap, DString),FromDocument,fromDocument )
+import Lib1 (State(..),emptyState)
 import Data.Aeson (Array)
 import Data.Aeson.Encoding (list, string)
 import GHC.Generics (D)
@@ -183,19 +183,28 @@ getSpaces (h:t) spaces
 -- IMPLEMENT
 -- Change right hand side as you wish
 -- You will have to create an instance of FromDocument
-data GameStart = GameStart deriving Show
+data GameStart = GameStart State
+  deriving (Show, Eq)
+
+instance FromDocument GameStart where
+  fromDocument doc =case makeCords doc ([0],[0]) of
+    Left str -> Left str
+    Right cords -> case makeTuple cords 'x' [] of
+        Left str -> Left str
+        Right tuple -> Right (GameStart (Cord (tuple)))
+  
+
 
 -- This adds game data to initial state
 -- Errors are not reported since GameStart is already totally valid adt
 -- containing all fields needed
 --gameStart :: State -> GameStart -> State
 --gameStart (State l) d = State $ ("Game started: " ++ show d) : l
-gameStart :: State -> Document -> Either String State
-gameStart (Cord state) doc = do
-    cords <- makeCords doc ([0],[0])
-    tuple <- makeTuple cords 'x' []
-    Right(Cord (tuple++state))
-gameStart _ _ = Left "Error: Wrong parameters (gameStart)"
+gameStart :: State -> GameStart -> State
+gameStart l (GameStart state) =state
+
+
+
 
 makeCords :: Document -> ([Int],[Int]) -> Either String ([Int],[Int])
 makeCords (DMap ((str,doc):t)) (col,row) =
@@ -226,16 +235,28 @@ makeTuple _ _ _ = Left "Error: Wrong parameters (makeTuple)"
 -- IMPLEMENT
 -- Change right hand side as you wish
 -- You will have to create an instance of FromDocument
-data Hint = Hint deriving Show
+data Hint = Hint State
+  deriving (Show, Eq)
+
+instance FromDocument Hint where
+    -- fromDocument :: Document -> Either String Hint
+    fromDocument doc = case hint_ (emptyState) doc of
+        Left str -> Left str
+        Right state -> Right ( Hint state)
+    fromDocument _ = Left "Hint data invalid."
+
+hint :: State -> Hint -> State
+hint (Cord list) (Hint (Cord doc)) = Cord (doc++list)
+    
 
 -- Adds hint data to the game state
 -- Errors are not reported since GameStart is already totally valid adt
 -- containing all fields needed
 --hint :: State -> Hint -> State
 --hint (State l) h = State $ ("Hint " ++ show h) : l
-hint :: State -> Document -> Either String State
-hint l h = (hintf h l (0,0,'x'))
-hint _ _ =  Left "Error: Wrong parameters"
+hint_ :: State -> Document -> Either String State
+hint_ l h = (hintf h l (0,0,'x'))
+hint_ _ _ =  Left "Error: Wrong parameters"
 
 hintf :: Document -> State ->(Int,Int,Char)-> Either String State
 hintf (DNull) (Cord state2) (x,y,c) = Right (Cord state2)
