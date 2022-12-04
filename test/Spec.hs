@@ -58,13 +58,13 @@ toYamlTests = testGroup "Document to yaml"
     , testCase "list of lists of lists of lists" $
         renderDocument (DList [DInteger 1, DList[DInteger 8, DList[DString "string", DInteger 5, DList [DInteger 7]], DInteger 6]]) @?= listOfListsOfListsOfLists
     , testCase "map" $
-        renderDocument (DMap [("key1", DInteger 3), ("key2", DString "string")]) @?= mapYaml
+        renderDocument (DMap [("keyA", DInteger 3), ("keyB", DString "string")]) @?= mapYaml
     , testCase "list of maps" $
-        renderDocument (DList [DInteger 4, DMap [("key1", DInteger 3), ("key2", DString "string1")] ,DMap [("key3", DInteger 5), ("key4", DString "string2")]]) @?= listOfMaps
+        renderDocument (DList [DInteger 4, DMap [("keyA", DInteger 3), ("keyB", DString "string1")] ,DMap [("keyC", DInteger 5), ("keyD", DString "string2")]]) @?= listOfMaps
     , testCase "map of list" $
-        renderDocument (DMap[("key1", DList[DInteger 1, DInteger 2]), ("key2", DInteger 5)]) @?= mapOfList
+        renderDocument (DMap[("keyA", DList[DInteger 1, DInteger 2]), ("keyB", DInteger 5)]) @?= mapOfList
     , testCase "map of map" $
-        renderDocument (DMap[("key1", DMap[("key1.1", DInteger 4), ("key1.2", DList[DInteger 3, DInteger 7])]), ("key2", DString "string")]) @?= mapOfMap
+        renderDocument (DMap[("keyA", DMap[("keyA.a", DInteger 4), ("keyA.b", DList[DInteger 3, DInteger 7])]), ("keyB", DString "string")]) @?= mapOfMap
   ]
 
 fromYamlTests :: TestTree
@@ -90,13 +90,13 @@ fromYamlTests = testGroup "Document from yaml"
     , testCase "empty list" $
         getRight(parseDocument "---\n[]") @?= DList []
     , testCase "map" $
-        getRight(parseDocument mapYaml) @?= DMap [("key1", DInteger 3), ("key2", DString "string")]
+        getRight(parseDocument mapYaml) @?= DMap [("keyA", DInteger 3), ("keyB", DString "string")]
     , testCase "list of maps" $
-        getRight(parseDocument listOfMaps) @?= DList [DInteger 4, DMap [("key1", DInteger 3), ("key2", DString "string1")] ,DMap [("key3", DInteger 5), ("key4", DString "string2")]]
+        getRight(parseDocument listOfMaps) @?= DList [DInteger 4, DMap [("keyA", DInteger 3), ("keyB", DString "string1")] ,DMap [("keyC", DInteger 5), ("keyD", DString "string2")]]
     , testCase "map of lists" $
-        getRight(parseDocument mapOfList) @?= DMap[("key1", DList[DInteger 1, DInteger 2]), ("key2", DInteger 5)]
+        getRight(parseDocument mapOfList) @?= DMap[("keyA", DList[DInteger 1, DInteger 2]), ("keyB", DInteger 5)]
     , testCase "map of map" $
-        getRight(parseDocument mapOfMap) @?= DMap[("key1", DMap[("key1.1", DInteger 4), ("key1.2", DList[DInteger 3, DInteger 7])]), ("key2", DString "string")]
+        getRight(parseDocument mapOfMap) @?= DMap[("keyA", DMap[("keyA.a", DInteger 4), ("keyA.b", DList[DInteger 3, DInteger 7])]), ("keyB", DString "string")]
     , testCase "empty map" $
         getRight(parseDocument "---\n{}") @?= DMap []
    ]
@@ -157,8 +157,8 @@ listOfListsOfListsOfLists = unlines [
 mapYaml :: String
 mapYaml = unlines [
        "---"
-     , "key1: 3"
-     , "key2: string"
+     , "keyA: 3"
+     , "keyB: string"
   ]
  
 listOfMaps :: String
@@ -166,31 +166,31 @@ listOfMaps = unlines [
       "---"
     , "- 4"
     , "-"
-    , "  key1: 3"
-    , "  key2: string1"
+    , "  keyA: 3"
+    , "  keyB: string1"
     , "-"
-    , "  key3: 5"
-    , "  key4: string2"
+    , "  keyC: 5"
+    , "  keyD: string2"
  ]
 
 mapOfList :: String
 mapOfList = unlines [
       "---"
-    , "key1:"
+    , "keyA:"
     , "  - 1"
     , "  - 2"
-    , "key2: 5"   
+    , "keyB: 5"   
  ]
 
 mapOfMap :: String
 mapOfMap = unlines [
       "---"
-    , "key1:"
-    , "  key1.1: 4"
-    , "  key1.2:"
+    , "keyA:"
+    , "  keyA.a: 4"
+    , "  keyA.b:"
     , "    - 3"
     , "    - 7"
-    , "key2: string"
+    , "keyB: string"
  ]
 
 

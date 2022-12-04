@@ -53,13 +53,32 @@ parseComplexType str lvl = do
                 if spaces == lvl 
                     then parseDList str spaces 
                 else parseDList (drop (spaces + 2) str) spaces)
-        _ ->  parseDList str spaces
+        "{}" -> parseDMap str []
+        _    -> case last (head (words str)) of  
+              ':' -> parseDMap str []
+              _   -> parseDList str spaces
 
+parseDMap :: String -> [(String, Document)] -> Either String (Document, String)
+parseDMap str _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
+parseDMap str list = do
+  (x1, y1) <- readFirst str
+  (x2, y2) <- parseBaseType (drop 1 y1)
+  listM <- addElem (x1, x2) list y2
+  case drop 1 y2 of
+    "" -> return (DMap (fst listM), snd listM)
+    _  -> parseDMap (drop 1 y2) (fst listM)
 
-parseDMap :: String -> Either String (Document, String)
-parseDMap str = Left "Not implemented"
+addElem :: a -> [a] -> String -> Either String ([a], String)
+addElem tuple list left = Right ((addToListEnd tuple list), left)  
+
+readFirst :: String -> Either String (String, String)
+readFirst str = do
+  let s = reverse (head (words str)) 
+      l = length s
+  return (reverse (drop 1 s), drop l str)
 
 parseDList :: String -> Int -> Either String (Document, String)
+parseDList str lvl | head (words str) == "[]" = Right (DList [], drop 2 str)
 parseDList str lvl = do
     (_, x1) <- parseChar '-' str
     case isSpace (head x1) of 
@@ -179,6 +198,9 @@ getSpaces [] spaces = 0
 getSpaces (h:t) spaces
     | h == ' ' = getSpaces t (spaces + 1)
     | otherwise = spaces
+
+addToListEnd :: a -> [a] -> [a]
+addToListEnd a xs = xs ++ [a]
 
 -- IMPLEMENT
 -- Change right hand side as you wish
