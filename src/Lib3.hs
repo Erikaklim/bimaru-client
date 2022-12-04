@@ -214,7 +214,7 @@ instance FromDocument GameStart where
     Right cords -> case makeTuple cords 'x' [] of
         Left str -> Left str
         Right tuple -> Right (GameStart (Cord (tuple)))
-  
+
 
 
 -- This adds game data to initial state
