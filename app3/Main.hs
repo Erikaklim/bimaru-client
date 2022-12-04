@@ -83,22 +83,14 @@ check c = do
   resp <- liftIO $ postWith opts (url ++ "/check") body
   pure $ cs $ resp ^. responseBody
 
--- hints :: Int -> Repl ()
--- hints n = do
---   (url, s) <- lift get
---   r <- liftIO $ Wreq.get (url ++ "/hint?limit=" ++ show n)
---   let h = Lib3.parseDocument (cs (r ^. responseBody)) >>= fromDocument
---   case (h :: Either String Lib3.Hint) of
---     Left msg -> liftIO $ fatal $ cs msg
---     Right d -> lift $ put (url, Lib3.hint s d)
 hints :: Int -> Repl ()
 hints n = do
   (url, s) <- lift get
   r <- liftIO $ Wreq.get (url ++ "/hint?limit=" ++ show n)
-  d <- liftIO $ Y.decodeThrow $ BSL.toStrict $ r ^. responseBody
-  case Lib3.hint s d of
-    Right state -> lift $ put (url, state)
+  let h = Lib3.parseDocument (cs (r ^. responseBody)) >>= fromDocument
+  case (h :: Either String Lib3.Hint) of
     Left msg -> liftIO $ fatal $ cs msg
+    Right d -> lift $ put (url, Lib3.hint s d)
 
 -- Tab Completion: return a completion for partial words entered
 completer :: Monad m => WordCompleter m
@@ -106,26 +98,16 @@ completer n = do
   let names = [commandShow, commandHint, commandCheck, commandToggle]
   return $ Prelude.filter (L.isPrefixOf n) names
 
--- ini :: Repl ()
--- ini = do
---   (url, s) <- lift get
---   r <- liftIO $ post url B.empty
---   let gs = Lib3.parseDocument (cs (r ^. responseBody)) >>= fromDocument
---   case (gs :: Either String Lib3.GameStart) of
---     Left msg -> liftIO $ fatal $ cs msg
---     Right d -> do
---       lift $ put (url, Lib3.gameStart s d)
---       liftIO $ TIO.putStrLn "Welcome to Bimaru v3. Press [TAB] for available commands list"
 ini :: Repl ()
 ini = do
   (url, s) <- lift get
   r <- liftIO $ post url B.empty
-  d <- liftIO $ Y.decodeThrow $ BSL.toStrict $ r ^. responseBody
-  case Lib3.gameStart s d of
-    Right state -> do
-      lift $ put (url, state)
-      liftIO $ TIO.putStrLn "Welcome to Bimaru v2. Press [TAB] for available commands list"
+  let gs = Lib3.parseDocument (cs (r ^. responseBody)) >>= fromDocument
+  case (gs :: Either String Lib3.GameStart) of
     Left msg -> liftIO $ fatal $ cs msg
+    Right d -> do
+      lift $ put (url, Lib3.gameStart s d)
+      liftIO $ TIO.putStrLn "Welcome to Bimaru v3. Press [TAB] for available commands list"
 
 fatal :: Text -> IO ()
 fatal msg = do

@@ -43,6 +43,8 @@ toYamlTests = testGroup "Document to yaml"
         renderDocument DNull @?= "---\nnull"
     , testCase "int" $
         renderDocument (DInteger 5) @?= "---\n5"
+    , testCase "negative int" $
+        renderDocument (DInteger (-5)) @?= "---\n-5"
     , testCase "string" $
         renderDocument (DString "string") @?= "---\nstring"
     , testCase "list of ints" $
@@ -71,8 +73,12 @@ fromYamlTests = testGroup "Document from yaml"
         getRight(parseDocument "---\nnull") @?= DNull
     , testCase "int" $
         getRight(parseDocument "---\n5") @?= DInteger 5
+    , testCase "negative int" $
+        getRight(parseDocument "---\n-5") @?= DInteger (-5)
     , testCase "string" $
         getRight(parseDocument "---\nstring") @?= DString "string"
+    , testCase "empty string" $
+        getRight(parseDocument "---\n''") @?= DString ""
     , testCase "list of ints" $
         getRight(parseDocument listOfInts) @?= DList [DInteger 5, DInteger 6, DInteger 7]
     , testCase "list of strings" $
@@ -81,6 +87,8 @@ fromYamlTests = testGroup "Document from yaml"
         getRight(parseDocument listOfLists) @?= DList [ DString "string1", DList[DInteger 2, DString "string2"] ,DList[DInteger 3, DInteger 4]]
     , testCase "list of lists of lists" $
         getRight(parseDocument listOfListsOfLists) @?= DList [DInteger 1, DList[DInteger 8, DList[DString "string", DInteger 5], DInteger 6]]
+    , testCase "empty list" $
+        getRight(parseDocument "---\n[]") @?= DList []
     , testCase "map" $
         getRight(parseDocument mapYaml) @?= DMap [("key1", DInteger 3), ("key2", DString "string")]
     , testCase "list of maps" $
@@ -89,9 +97,8 @@ fromYamlTests = testGroup "Document from yaml"
         getRight(parseDocument mapOfList) @?= DMap[("key1", DList[DInteger 1, DInteger 2]), ("key2", DInteger 5)]
     , testCase "map of map" $
         getRight(parseDocument mapOfMap) @?= DMap[("key1", DMap[("key1.1", DInteger 4), ("key1.2", DList[DInteger 3, DInteger 7])]), ("key2", DString "string")]
-    -- IMPLEMENT more test cases:
-    -- * other primitive types/values
-    -- * nested types
+    , testCase "empty map" $
+        getRight(parseDocument "---\n{}") @?= DMap []
    ]
 
 listOfInts :: String
