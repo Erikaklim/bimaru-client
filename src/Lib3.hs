@@ -7,6 +7,7 @@
 {-# HLINT ignore "Use camelCase" #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# HLINT ignore "Use first" #-}
+{-# HLINT ignore "Use if" #-}
 module Lib3(hint, gameStart, parseDocument, GameStart, Hint) where
 
 import Text.Read
@@ -22,18 +23,17 @@ import Data.Vector.Internal.Check (check)
 -- IMPLEMENT
 -- Parses a document from yaml
 
+
+
 parseDocument :: String -> Either String Document
 parseDocument str = (fst) <$> (dropTitle str)
 --parseDocument _ = Left "Given value is not a String"
 
 dropTitle :: String -> Either String (Document, String)
-dropTitle str = startParse (drop 4 str ) 0 
+dropTitle str = startParse (drop 4 str ) 0
 
 startParse :: String -> Int -> Either String (Document, String)
-startParse str lvl =
-    case take 2 str of
-        "-\n" -> startParse (drop 2 str) (lvl - 1)
-        _ -> dataCheck (parseComplexType str lvl) (parseBaseType str)
+startParse str lvl = dataCheck (parseComplexType str lvl) (parseBaseType str)
 
 dataCheck :: Either String (a, String) -> Either String (a, String) -> Either String (a, String)
 dataCheck parser1 parser2 =
@@ -42,11 +42,19 @@ dataCheck parser1 parser2 =
         Left _ -> parser2
 
 parseComplexType :: String -> Int -> Either String (Document, String)
-parseComplexType str lvl = 
-    case head str of
-        ' ' -> parseComplexType (drop 2 str) (lvl + 1)
-        _ ->  parseDList str lvl
-  
+parseComplexType str lvl = do
+    let spaces = getSpaces str 0
+    case take 2 str of
+        "-\n" -> parseComplexType (drop 2 str) spaces
+        "  " ->  
+            if spaces > lvl
+                then parseDList (drop spaces str) spaces
+            else (
+                if spaces == lvl 
+                    then parseDList str spaces 
+                else parseDList (drop (spaces + 2) str) spaces)
+        _ ->  parseDList str spaces
+
 
 parseDMap :: String -> Either String (Document, String)
 parseDMap str = Left "Not implemented"
@@ -54,15 +62,16 @@ parseDMap str = Left "Not implemented"
 parseDList :: String -> Int -> Either String (Document, String)
 parseDList str lvl = do
     (_, x1) <- parseChar '-' str
-    case lvl of 
-        1 -> Left "its the same list level"
-        _ ->  do 
-            (y, x2) <- optional (drop 1 x1) (lvl + 1) elems  
-            (_, x3) <- parseChar '\n' x2
-            case y of
-                Just a  -> return (DList a, x3)
-                Nothing -> return (DList [], x3)
-
+    case isSpace (head x1) of 
+      False -> Left "Its negative number"
+      True -> do
+        (y, x2) <- optional (drop 1 x1) lvl elems
+        (l, x3) <- dataCheck (parseChar '-' x2) (parseChar '\n' x2)
+        case y of
+          Just a  -> case l of
+            '-' -> return (DList a, l:x3)
+            _   -> return (DList a, x3)
+          Nothing -> return (DList [], x3)
 
 optional :: String -> Int -> (String -> Int -> Either String (a, String)) -> Either String (Maybe a, String)
 optional str lvl parser =
@@ -71,7 +80,7 @@ optional str lvl parser =
         Right (i, r) -> Right (Just i, r)
 
 elems :: String -> Int -> Either String ([Document], String)
-elems str lvl = do
+elems str lvl = do 
     (i, r) <- dataCheck (multiple str lvl) (single str lvl)
     return (i, r)
 
@@ -83,14 +92,11 @@ single str lvl = do
 multiple :: String -> Int -> Either String ([Document], String)
 multiple str lvl = do
     (i1, r1) <- startParse str lvl
-    case r1 of
-      "\n" -> return ([i1], r1)
-      _    -> do 
-        (i2, r2) <- many r1 lvl fromSecond
-        return (i1:i2, r2)
+    (i2, r2) <- many r1 lvl fromSecond
+    return (i1:i2, r2)
 
 many :: String -> Int -> (String -> Int -> Either String (a, String)) -> Either String ([a], String)
-many str lvl parser = many' str [] 
+many str lvl parser = many' str []
     where
         many' s [] =
              case parser s lvl of
@@ -102,20 +108,37 @@ many str lvl parser = many' str []
                 Right (i, r) -> many' r (i:acc)
 
 fromSecond :: String -> Int -> Either String (Document, String)
+fromSecond str lvl | str == "\n" = Left "end"
+                   | str == "" = Left "end"
 fromSecond str lvl = do
-    (_, r1) <- parseChar '\n' str
-    case r1 of
-      "" -> Left "end"
-      _ -> do
-        (i, r2) <- startParse r1 lvl
-        return (i, r2)
+    (x, r1) <- dataCheck (parseChar '-' str) (parseChar '\n' str) 
+    case takeWhile isSpace r1 of 
+        " " -> startParse (drop 1 r1) lvl
+        _ ->    
+            case stripPrefix "-\n" r1 of
+                Just a -> do
+                    (i, r2) <- startParse r1 0
+                    return (i, r2)
+                Nothing -> 
+                    if (getSpaces r1 0) == lvl
+                    then ( do
+                        (i, r2) <- startParse (drop (lvl + 2) r1) lvl
+                        return (i, r2))
+                    else ( 
+                        if (getSpaces r1 0) < lvl
+                        then (
+                            Left "list closes")
+                        else ( do
+                        (i, r2) <- startParse r1 lvl
+                        return (i, r2)))
 
 parseChar :: Char -> String -> Either String (Char, String)
-parseChar ch [] = Left $ "Empty input: '" ++ [ch] ++ "' expected"
+parseChar ch [] = Right (' ', "")
 parseChar ch (x:xs) | ch == x = Right (x, xs)
                     | otherwise = Left $ ch :" expected"
 
 parseBaseType :: String -> Either String (Document, String)
+parseBaseType (x:xs) | head (words (x:xs)) == "''" = Right (DString "", "")
 parseBaseType str = do
     let firstElem = head (words str)
     case firstElem of
@@ -129,41 +152,33 @@ parseDInteger :: String -> Either String (Document, String)
 parseDInteger str = (\(i, r) -> (DInteger i, r)) <$> parseInteger str
 
 parseInteger :: String -> Either String (Int, String)
-parseInteger str =
-    let
-        prefix = takeWhile isDigit str
-    in
-        case prefix of
-            [] -> Left "Empty integer"
-            _ -> Right (read prefix, drop (length prefix) str)
+parseInteger ('-':xs) = do
+    let prefix = takeWhile isDigit xs
+    case prefix of
+      [] -> Left "Empty integer"
+      _ -> Right (read ('-':prefix), drop (length prefix + 1) xs)
+parseInteger str = do
+    let prefix = takeWhile isDigit str
+    case prefix of
+      [] -> Left "Empty integer"
+      _ -> Right (read prefix, drop (length prefix) str)
 
 parseDString :: String -> Either String (Document, String)
 parseDString str = (\(i, r) -> (DString i, r)) <$> parseString str
 
 parseString :: String -> Either String (String, String)
-parseString str = 
-    let 
-        prefix = takeWhile (/='\n') str
-    in
-        case prefix of 
-            [] -> Left "Empty string"
-            _  -> Right (prefix, drop (length prefix) str)
+parseString str = do
+    let prefix = takeWhile (/='\n') str
+    return (prefix, drop (length prefix) str)
 
 readMaybeInt :: String -> Maybe Int
 readMaybeInt = readMaybe
 
-charToString :: Char -> String
-charToString c = [c]
-
-addToListEnd :: a -> [a] -> [a]
-addToListEnd a xs = xs ++ [a]
-
-addListToListEnd :: [a] -> [a] -> [a]
-addListToListEnd a xs = xs ++ a
-
-takeOneString :: String -> String -> (String, String)
-takeOneString ('\n':t) list = (list, t)
-takeOneString (h:t) list = takeOneString t (addToListEnd h list)
+getSpaces :: String -> Int -> Int
+getSpaces [] spaces = 0
+getSpaces (h:t) spaces
+    | h == ' ' = getSpaces t (spaces + 1)
+    | otherwise = spaces
 
 -- IMPLEMENT
 -- Change right hand side as you wish
