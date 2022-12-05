@@ -23,8 +23,6 @@ import Data.Vector.Internal.Check (check)
 -- IMPLEMENT
 -- Parses a document from yaml
 
-
-
 parseDocument :: String -> Either String Document
 parseDocument str = (fst) <$> (dropTitle str)
 --parseDocument _ = Left "Given value is not a String"
@@ -45,14 +43,17 @@ parseComplexType :: String -> Int -> Either String (Document, String)
 parseComplexType str lvl = do
     let spaces = getSpaces str 0
     case take 2 str of
-        "-\n" -> parseComplexType (drop 2 str) spaces
+        "-\n" -> parseComplexType (drop 2 str) 0
         "  " ->  
-            if spaces > lvl
-                then parseDList (drop spaces str) spaces
-            else (
-                if spaces == lvl 
-                    then parseDList str spaces 
-                else parseDList (drop (spaces + 2) str) spaces)
+            case last (head (words str)) of
+                ':' -> parseDMap (drop spaces str) []
+                _   -> 
+                    if spaces > lvl
+                    then parseDList (drop spaces str) spaces
+                    else (
+                      if spaces == lvl 
+                      then parseDList str spaces 
+                      else parseDList (drop (spaces + 2) str) spaces)
         "{}" -> parseDMap str []
         _    -> case last (head (words str)) of  
               ':' -> parseDMap str []
@@ -62,11 +63,16 @@ parseDMap :: String -> [(String, Document)] -> Either String (Document, String)
 parseDMap str _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
 parseDMap str list = do
   (x1, y1) <- readFirst str
-  (x2, y2) <- parseBaseType (drop 1 y1)
+  --let sp = getSpaces y1 0
+  --let nl = getNewLines y1 0
+  (x2, y2) <- startParse (drop 1 y1) 0
   listM <- addElem (x1, x2) list y2
-  case drop 1 y2 of
-    "" -> return (DMap (fst listM), snd listM)
-    _  -> parseDMap (drop 1 y2) (fst listM)
+  let next = drop (getNewLines y2 0) y2
+  case next of
+    "" -> Right (DMap (fst listM), next)
+    _  -> case last (head (words next)) of
+        ':' -> parseDMap (drop (getSpaces next 0) next) (fst listM)
+        _   -> return (DMap (fst listM), snd listM)
 
 addElem :: a -> [a] -> String -> Either String ([a], String)
 addElem tuple list left = Right ((addToListEnd tuple list), left)  
@@ -129,6 +135,7 @@ many str lvl parser = many' str []
 fromSecond :: String -> Int -> Either String (Document, String)
 fromSecond str lvl | str == "\n" = Left "end"
                    | str == "" = Left "end"
+                   | last (head (words str)) == ':' = Left "end"
 fromSecond str lvl = do
     (x, r1) <- dataCheck (parseChar '-' str) (parseChar '\n' str) 
     case takeWhile isSpace r1 of 
@@ -198,6 +205,12 @@ getSpaces [] spaces = 0
 getSpaces (h:t) spaces
     | h == ' ' = getSpaces t (spaces + 1)
     | otherwise = spaces
+
+getNewLines :: String -> Int -> Int
+getNewLines [] newLines = newLines
+getNewLines (h:t) newLines
+    | h == '\n' = getNewLines t (newLines + 1)
+    | otherwise = newLines
 
 addToListEnd :: a -> [a] -> [a]
 addToListEnd a xs = xs ++ [a]
