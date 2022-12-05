@@ -12,7 +12,7 @@ module Lib3(hint, gameStart, parseDocument, GameStart, Hint) where
 
 import Text.Read
 import Data.Char
-import Types ( Document (DNull, DList, DInteger, DMap, DString),FromDocument,fromDocument )
+import Types ( Document (DNull, DList, DInteger, DMap, DString),FromDocument, fromDocument)
 import Lib1 (State(..),emptyState)
 import Data.Aeson (Array)
 import Data.Aeson.Encoding (list, string)
@@ -202,6 +202,7 @@ getSpaces (h:t) spaces
 addToListEnd :: a -> [a] -> [a]
 addToListEnd a xs = xs ++ [a]
 
+
 -- IMPLEMENT
 -- Change right hand side as you wish
 -- You will have to create an instance of FromDocument
@@ -216,7 +217,6 @@ instance FromDocument GameStart where
         Right tuple -> Right (GameStart (Cord (tuple)))
 
 
-
 -- This adds game data to initial state
 -- Errors are not reported since GameStart is already totally valid adt
 -- containing all fields needed
@@ -224,8 +224,6 @@ instance FromDocument GameStart where
 --gameStart (State l) d = State $ ("Game started: " ++ show d) : l
 gameStart :: State -> GameStart -> State
 gameStart l (GameStart state) =state
-
-
 
 
 makeCords :: Document -> ([Int],[Int]) -> Either String ([Int],[Int])
