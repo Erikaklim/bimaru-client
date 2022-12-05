@@ -43,6 +43,7 @@ parseComplexType :: String -> Int -> Either String (Document, String)
 parseComplexType str lvl = do
     let spaces = getSpaces str 0
     case take 2 str of
+        "\n " -> parseComplexType (drop 1 str) 0
         "-\n" -> parseComplexType (drop 2 str) 0
         "  " ->  
             case last (head (words str)) of
@@ -82,6 +83,7 @@ readFirst str = do
   let s = reverse (head (words str)) 
       l = length s
   return (reverse (drop 1 s), drop l str)
+
 
 parseDList :: String -> Int -> Either String (Document, String)
 parseDList str lvl | head (words str) == "[]" = Right (DList [], drop 2 str)
@@ -142,16 +144,19 @@ fromSecond str lvl = do
         " " -> startParse (drop 1 r1) lvl
         _ ->    
             case stripPrefix "-\n" r1 of
-                Just a -> do
-                    (i, r2) <- startParse r1 0
-                    return (i, r2)
+                Just a -> 
+                    if lvl == (getSpaces a 0)
+                    then (Left "list closes")
+                    else ( do
+                      (i, r2) <- startParse r1 0
+                      return (i, r2))
                 Nothing -> 
-                    if (getSpaces r1 0) == lvl
+                    if getSpaces (drop (getNewLines r1 0) r1) 0 == lvl
                     then ( do
                         (i, r2) <- startParse (drop (lvl + 2) r1) lvl
                         return (i, r2))
                     else ( 
-                        if (getSpaces r1 0) < lvl
+                        if getSpaces (drop (getNewLines r1 0) r1) 0 < lvl
                         then (
                             Left "list closes")
                         else ( do
