@@ -27,7 +27,9 @@ parseDocument :: String -> Either String Document
 parseDocument str = (fst) <$> (dropTitle str)
 
 dropTitle :: String -> Either String (Document, String)
-dropTitle str = startParse (drop 4 str ) 0
+dropTitle str = case take 4 str of 
+                "---\n" -> startParse (drop 4 str ) 0
+                _ -> startParse str 0
 
 startParse :: String -> Int -> Either String (Document, String)
 startParse str lvl = dataCheck (parseComplexType str lvl) (parseBaseType str)
@@ -132,9 +134,9 @@ many str lvl parser = many' str []
                 Right (i, r) -> many' r (i:acc)
 
 fromSecond :: String -> Int -> Either String (Document, String)
-fromSecond str lvl | str == "\n" = Left "end"
-                   | str == "" = Left "end"
-                   | last (head (words str)) == ':' = Left "end"
+fromSecond str lvl | str == "\n" = Left "End of the file"
+                   | str == "" = Left "End of the file"
+                   | last (head (words str)) == ':' = Left "DMap type variable found"
 fromSecond str lvl = do
     (x, r1) <- dataCheck (parseChar '-' str) (parseChar '\n' str) 
     case takeWhile isSpace r1 of 
@@ -143,7 +145,7 @@ fromSecond str lvl = do
             case stripPrefix "-\n" r1 of
                 Just a -> 
                     if lvl == (getSpaces a 0)
-                    then (Left "list closes")
+                    then (Left "List closes")
                     else ( do
                       (i, r2) <- startParse r1 0
                       return (i, r2))
@@ -155,7 +157,7 @@ fromSecond str lvl = do
                     else ( 
                         if getSpaces (drop (getNewLines r1 0) r1) 0 < lvl
                         then (
-                            Left "list closes")
+                            Left "List closes")
                         else ( do
                         (i, r2) <- startParse r1 lvl
                         return (i, r2)))
@@ -183,12 +185,12 @@ parseInteger :: String -> Either String (Int, String)
 parseInteger ('-':xs) = do
     let prefix = takeWhile isDigit xs
     case prefix of
-      [] -> Left "Empty integer"
+      [] -> Left "Error: Empty integer"
       _ -> Right (read ('-':prefix), drop (length prefix + 1) xs)
 parseInteger str = do
     let prefix = takeWhile isDigit str
     case prefix of
-      [] -> Left "Empty integer"
+      [] -> Left "Error: Empty integer"
       _ -> Right (read prefix, drop (length prefix) str)
 
 parseDString :: String -> Either String (Document, String)
