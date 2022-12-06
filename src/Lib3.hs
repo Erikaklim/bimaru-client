@@ -25,7 +25,6 @@ import Data.Vector.Internal.Check (check)
 
 parseDocument :: String -> Either String Document
 parseDocument str = (fst) <$> (dropTitle str)
---parseDocument _ = Left "Given value is not a String"
 
 dropTitle :: String -> Either String (Document, String)
 dropTitle str = startParse (drop 4 str ) 0
@@ -47,7 +46,7 @@ parseComplexType str lvl = do
         "-\n" -> parseComplexType (drop 2 str) 0
         "  " ->  
             case last (head (words str)) of
-                ':' -> parseDMap (drop spaces str) []
+                ':' -> parseDMap (drop spaces str) spaces []
                 _   -> 
                     if spaces > lvl
                     then parseDList (drop spaces str) spaces
@@ -55,14 +54,14 @@ parseComplexType str lvl = do
                       if spaces == lvl 
                       then parseDList str spaces 
                       else parseDList (drop (spaces + 2) str) spaces)
-        "{}" -> parseDMap str []
+        "{}" -> parseDMap str spaces []
         _    -> case last (head (words str)) of  
-              ':' -> parseDMap str []
+              ':' -> parseDMap str spaces [] 
               _   -> parseDList str spaces
 
-parseDMap :: String -> [(String, Document)] -> Either String (Document, String)
-parseDMap str _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
-parseDMap str list = do
+parseDMap :: String -> Int -> [(String, Document)] -> Either String (Document, String)
+parseDMap str _ _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
+parseDMap str lvl list = do
   (x1, y1) <- readFirst str
   (x2, y2) <- startParse (drop 1 y1) 0
   listM <- addElem (x1, x2) list y2
@@ -70,7 +69,9 @@ parseDMap str list = do
   case next of
     "" -> Right (DMap (fst listM), next)
     _  -> case last (head (words next)) of
-        ':' -> parseDMap (drop (getSpaces next 0) next) (fst listM)
+        ':' -> if lvl == (getSpaces next 0)
+               then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
+               else (return (DMap (fst listM), snd listM))
         _   -> return (DMap (fst listM), snd listM)
 
 addElem :: a -> [a] -> String -> Either String ([a], String)
@@ -202,7 +203,7 @@ readMaybeInt :: String -> Maybe Int
 readMaybeInt = readMaybe
 
 getSpaces :: String -> Int -> Int
-getSpaces [] spaces = 0
+getSpaces [] spaces = spaces
 getSpaces (h:t) spaces
     | h == ' ' = getSpaces t (spaces + 1)
     | otherwise = spaces
