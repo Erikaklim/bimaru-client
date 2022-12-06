@@ -1,0 +1,41 @@
+<lowercase-letter> ::= 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' |
+                       'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'
+<uppercase-letter> ::= 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 
+                       'N' | 'O' | 'P' | 'q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
+
+<digit> ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+<first-digit> ::= '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+<number> ::= ['-'] <first-digit> {<digit>}| <digit>
+
+<escape-symbol> ::= '\n' | '\t' | ''' | '"' | '\'
+<escape-sequence-char> ::= '\' <escape-symbol>
+
+<symbol> ::= '!' | '@' | '#' | '$' | '%' | '^' | '&' | '*' | '(' | ')' | '_' | '+' | '-' | '='| '.' |
+	     ',' | ';' | ':' | '[' | ']' | '{' | '}' | '|' | '~'
+<char> ::= <lowercase-letter> | <uppercase-letter> | <digit> | <escape-sequence-char> | <symbol>
+
+<string> ::= <char> | <char> {<char>}
+<empty-string> ::= '\"\"'
+<empty-list> ::= '[]'
+<empty-map> ::= '{}'
+<null> ::= 'null'
+<new-line> ::= '\n'
+
+<regular> ::= (<null> | <string> | <empty-string> | <empty-list> | <empty-map> | <number>) <new-line>
+<broader> ::= <list> | <map>
+<document> ::= <regular> | <broader>
+<yaml-start> ::= '---\n'
+
+<lvl> ::= '0'
+<tab> ::= {'  ' lvl}
+<list-separator> ::= '-'
+
+<list-unit> ::= '- ' <regular>
+<list-unit-list> ::= (<list-unit> {<tab <lvl +1>> <list-unit>}) <list-separator> <new-line>
+<list-unit-map> ::= <map-unit> <list-separator> <new-line> {<map-unit> <list-separator> <new-line>}
+<list> ::= <yaml-start> <tab> <list-unit> {<tab <lvl + 1>>> <list-unit>} | <yaml-start> <tab> <list-unit-list> {<tab <lvl + 1>> <list-unit-list>} | <yaml-start> <tab> <list-unit-map> {<tab> <list-unit-map>}
+
+<map-unit> ::= [<string> ':' [' ']] [<regular>]
+<map-unit-list> ::= [<list-unit-list>] <map-unit> <list-unit-list>{<map-unit> <list-unit-list>}
+<map-unit-map> ::= (<map-unit> | map-unit-list) {<tab <lvl + 1>> (<map-unit> | map-unit-list)}
+<map> ::= <yaml-star> <tab> <map-unit> {<tab> <map-unit>} | <tab> <yaml-star> <map-unit-list> {<tab> <map-unit-list>} | <tab> <yaml-star> <map-unit-map> {<tab> <map-unit-map>}

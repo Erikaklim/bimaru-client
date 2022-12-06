@@ -15,6 +15,7 @@ import Data.Scientific as S
 import GHC.Generics
 import Data.String.Conversions
 
+import qualified Data.Map as Map
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen as Gen
 
@@ -103,7 +104,7 @@ arbitraryDMap :: Gen Document
 arbitraryDMap = do
     s <- getSize
     n <- choose (0, min 4 s)
-    DMap <$> vectorOf n ((,) <$> arbitraryK <*> arbitraryDocument)
+    DMap . Map.toList . Map.fromList <$> vectorOf n ((,) <$> arbitraryK <*> arbitraryDocument)
     where
         arbitraryK = do
             s <- getSize
