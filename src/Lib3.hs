@@ -249,11 +249,12 @@ makeCords (DMap ((str,doc):t)) (col,row) =
         "number_of_hints" -> (makeCords  (DMap t)  (col,row))
         "occupied_cols"-> do
             cols <- makeList doc []
-            makeCords  (DMap t) (cols,row)
+            Right (cols,row)
         "occupied_rows"-> do
             rows <- makeList doc []
-            Right (col,rows)
-        _ -> Left "Error: Wrong string"
+            makeCords  (DMap t) (col,rows)
+        "game_setup_id"->  (makeCords  (DMap t)  (col,row))
+        _ -> Left str
 makeCords _ _ = Left "Error: Wrong parameters (makeCords)"
 
 makeList  :: Document ->[Int]-> Either String [Int]
@@ -266,7 +267,7 @@ makeList _ _ = Left "Error: Wrong parameters (makeList)"
 makeTuple  :: ([Int],[Int])->Char->[(Int,Int,Char)]-> Either String [(Int,Int,Char)]
 makeTuple ([],[]) char tuple = Right(tuple)
 makeTuple ((hC:tC),(hR:tR)) char tuple = makeTuple (tC,tR) char ((hC,hR,char):tuple)
-makeTuple _ _ _ = Left "Error: Wrong parameters (makeTuple)"
+makeTuple kazkas _ _ = Left (show kazkas)
 
 
 -- IMPLEMENT
