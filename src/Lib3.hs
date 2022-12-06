@@ -64,8 +64,6 @@ parseDMap :: String -> [(String, Document)] -> Either String (Document, String)
 parseDMap str _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
 parseDMap str list = do
   (x1, y1) <- readFirst str
-  --let sp = getSpaces y1 0
-  --let nl = getNewLines y1 0
   (x2, y2) <- startParse (drop 1 y1) 0
   listM <- addElem (x1, x2) list y2
   let next = drop (getNewLines y2 0) y2
@@ -95,9 +93,7 @@ parseDList str lvl = do
         (y, x2) <- optional (drop 1 x1) lvl elems
         (l, x3) <- dataCheck (parseChar '-' x2) (parseChar '\n' x2)
         case y of
-          Just a  -> case l of
-            '-' -> return (DList a, l:x3)
-            _   -> return (DList a, x3)
+          Just a  -> return (DList a, l:x3)
           Nothing -> return (DList [], x3)
 
 optional :: String -> Int -> (String -> Int -> Either String (a, String)) -> Either String (Maybe a, String)
