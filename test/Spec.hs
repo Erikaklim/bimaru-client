@@ -99,6 +99,8 @@ fromYamlTests = testGroup "Document from yaml"
         getRight(parseDocument mapOfMap) @?= DMap[("keyA", DMap[("keyA.a", DInteger 4), ("keyA.b", DList[DInteger 3, DInteger 7])]), ("keyB", DString "string")]
     , testCase "empty map" $
         getRight(parseDocument "---\n{}") @?= DMap []
+    -- , testCase "empty" $
+    --     parseDocument(renderDocument (DMap [])) @?= Right (DMap [])
    ]
 
 listOfInts :: String
