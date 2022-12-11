@@ -7,11 +7,15 @@
 {-# HLINT ignore "Use camelCase" #-}
 {-# HLINT ignore "Eta reduce" #-}
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
+{-# HLINT ignore "Use if" #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module Lib2(
     State(..), emptyState, gameStart, render, mkCheck, toggle, hint, renderDocument
 ) where
 
 import System.IO
+import Text.Read
 import Types
     ( Document(DInteger, DString, DList, DNull, DMap), Coord(..), Check(..), ToDocument(..))
 
@@ -196,15 +200,30 @@ renderDocument :: Document -> String
 renderDocument d = "---\n" ++ renderDocumentf d
 
 renderDocumentf :: Document -> String
+renderDocumentf (DMap []) = "{}"
+renderDocumentf (DList []) = "[]"
 renderDocumentf (DMap a) = (renderDMap (DMap a) 0)
 renderDocumentf (DList a) = (renderDList (DList a) 0)
 renderDocumentf doc = baseTypes doc 
 
 baseTypes :: Document -> String
-baseTypes doc = case doc of
-    DNull -> "null" 
+baseTypes doc = 
+    case doc of
+    DNull -> "null"
     DInteger a -> show a
-    DString str -> str
+    DString [] -> "''"
+    DString str -> 
+      case readMaybeInt str of
+        Just a -> case (getSpaces str 0) == 0 of
+                    True -> case (getSpaces (reverse str) 0) == 0 of 
+                              True -> "'" ++ str ++ "'"
+                              False -> "'" ++ str ++ "'"
+                    False -> "'" ++ str ++ "'"
+        Nothing -> case head str of
+                  ' ' -> "'" ++ str ++ "'"
+                  _   -> case last str of
+                      ' ' -> "'" ++ str ++ "'"
+                      _   -> str
 
 getTabs :: Int -> String
 getTabs n 
@@ -213,12 +232,25 @@ getTabs n
 
 renderDMap :: Document -> Int -> String
 renderDMap (DMap []) _ = ""
+renderDMap (DMap ((str, (DMap [])):t)) n = (getTabs n ++ str ++ ": {}\n") ++ renderDMap (DMap t) n 
+renderDMap (DMap ((str, (DList [])):t)) n = (getTabs n ++ str ++ ": []\n") ++ renderDMap (DMap t) n 
 renderDMap (DMap ((str, (DList h)):t)) n = (getTabs n ++ str ++ ":\n") ++ (renderDList (DList h) (n+1)) ++ renderDMap (DMap t) n 
 renderDMap (DMap ((str, (DMap h)):t)) n = (getTabs n ++ str ++ ":\n") ++ (renderDMap (DMap h) (n+1)) ++ renderDMap (DMap t) n
 renderDMap (DMap ((str, doc):t)) n = (getTabs n ++ str ++ ": " ++ baseTypes doc ++ "\n") ++ renderDMap (DMap t) n
 
 renderDList :: Document -> Int -> String
 renderDList (DList []) _ = ""
+renderDList (DList ((DList []): t)) n = (getTabs n ++ "- []\n") ++ renderDList (DList t) n 
+renderDList (DList ((DMap []): t)) n = (getTabs n ++ "- {}\n") ++ renderDList (DList t) n 
 renderDList (DList ((DList h): t)) n = (getTabs n ++ "-\n") ++ (renderDList (DList h) (n+1)) ++ renderDList (DList t) n 
 renderDList (DList ((DMap h): t)) n = (getTabs n ++ "-\n") ++ (renderDMap (DMap h) (n+1)) ++ renderDList (DList t) n
 renderDList (DList (h:t)) n = (getTabs n ++ "- " ++ baseTypes h ++ "\n") ++ renderDList (DList t) n
+
+readMaybeInt :: String -> Maybe Int
+readMaybeInt = readMaybe
+
+getSpaces :: String -> Int -> Int
+getSpaces [] spaces = spaces
+getSpaces (h:t) spaces
+    | h == ' ' = getSpaces t (spaces + 1)
+    | otherwise = spaces
