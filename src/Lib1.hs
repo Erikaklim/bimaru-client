@@ -1,4 +1,11 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant bracket" #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# HLINT ignore "Use camelCase" #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
 module Lib1(
     State(..), emptyState, gameStart, render, mkCheck, toggle, hint
 ) where

@@ -8,6 +8,10 @@
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# HLINT ignore "Use first" #-}
 {-# HLINT ignore "Use if" #-}
+{-# HLINT ignore "Redundant if" #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# HLINT ignore "Use newtype instead of data" #-}
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 module Lib3(hint, gameStart, parseDocument, GameStart, Hint) where
 
 import Text.Read
@@ -32,8 +36,8 @@ dropTitle str =
   case take 4 str of 
   "---\n" -> case take 6 str of
              "---\n-\n" -> do 
-               (x, y) <- fromSecond (drop 3 str) 0
-               return (DList [x], y);
+               (x, y) <- many (drop 3 str) 0 fromSecond
+               return (DList x, y)
              _ -> startParse (drop 4 str ) 0
   _ -> startParse str 0
 
@@ -80,10 +84,15 @@ parseDMap str lvl list = do
         case next of
             "" -> Right (DMap (fst listM), next)
             _  -> case last (head (words next)) of
+                --':' -> parseDMap (drop (getSpaces next 0) next) lvl (fst listM)
                 ':' -> if lvl == (getSpaces next 0)
                     then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
-                    else (return (DMap (fst listM), snd listM))
+                    else (
+                        if lvl < (getSpaces next 0)
+                        then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
+                        else (return (DMap (fst listM), snd listM)))
                 _   -> return (DMap (fst listM), snd listM)
+
     _ -> do   
         (x2, y2) <- parseBaseType (drop 1 y1)
         listM <- addElem ((remove'' x1), x2) list y2
@@ -91,9 +100,13 @@ parseDMap str lvl list = do
         case next of
             "" -> Right (DMap (fst listM), next)
             _  -> case last (head (words next)) of
+               --':' -> parseDMap (drop (getSpaces next 0) next) lvl (fst listM)
                 ':' -> if lvl == (getSpaces next 0)
                     then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
-                    else (return (DMap (fst listM), snd listM))
+                    else (
+                        if lvl < (getSpaces next 0)
+                        then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
+                        else (return (DMap (fst listM), snd listM)))
                 _   -> return (DMap (fst listM), snd listM)
 
 addElem :: a -> [a] -> String -> Either String ([a], String)
@@ -134,14 +147,26 @@ elems str lvl = do
 
 single :: String -> Int -> Either String ([Document], String)
 single str lvl = do
-    (i, r) <- startParse str lvl
-    return ([i], r)
+    if (countDashes str 0) < lvl
+    then (do
+      (i, r) <- startParse str lvl
+      return ([i], r))
+    else (do
+      (i, r) <- startParse str ((countDashes str 0) * 2)
+      return ([i], r))
 
 multiple :: String -> Int -> Either String ([Document], String)
 multiple str lvl = do
-    (i1, r1) <- startParse str ((countDashes str 0) * 2)
-    (i2, r2) <- many r1 lvl fromSecond
-    return (i1:i2, r2)
+    if (countDashes str 0) < lvl
+    then (do
+        (i1, r1) <- startParse str lvl
+        (i2, r2) <- many r1 lvl fromSecond
+        return (i1:i2, r2))
+    else(do
+        (i1, r1) <- startParse str ((countDashes str 0) * 2)
+        (i2, r2) <- many r1 lvl fromSecond
+        return (i1:i2, r2))
+    
 
 many :: String -> Int -> (String -> Int -> Either String (a, String)) -> Either String ([a], String)
 many str lvl parser = many' str []
@@ -175,7 +200,7 @@ fromSecond str lvl = do
                     if getSpaces (drop (getNewLines r1 0) r1) 0 == lvl
                     then ( if (countDashes r1 0) > 1 
                            then (do
-                            (i, r2) <- startParse (drop (lvl + 2) r1) (((countDashes r1 0) -1) * 2)
+                            (i, r2) <- startParse (drop (lvl + 2) r1) (lvl + (((countDashes r1 0) -1) * 2))
                             return (i, r2))
                            else (do
                             (i, r2) <- startParse (drop (lvl + 2) r1) lvl
@@ -242,11 +267,6 @@ parseString str = do
           "'" -> do
                   let prefix = takeWhile (/='\n') str
                   return ((dropFirstAndLast prefix), drop (length prefix) str)
-                  -- case readMaybeInt (dropFirstAndLast prefix) of
-                  --   Just a  -> return ((dropFirstAndLast prefix), drop (length prefix) str)
-                  --   Nothing -> case (getSpaces (dropFirstAndLast prefix) 0 ) == length (dropFirstAndLast prefix) of
-                  --       False -> return (prefix, drop (length prefix) str)
-                  --       True  -> return ((dropFirstAndLast prefix), drop (length prefix) str)
           _   -> do
                   let prefix = takeWhile (/='\n') str
                   return (prefix, drop (length prefix) str)
@@ -281,6 +301,7 @@ countDashes:: String -> Int -> Int
 countDashes [] dashes = dashes
 countDashes str dashes
     | take 2 str == "- " = countDashes (drop 2 str) (dashes + 1)
+    | take 2 str == "  " = countDashes (drop 2 str) dashes
     | otherwise = dashes 
 
 remove'' :: String -> String 
@@ -291,6 +312,8 @@ remove'' str =
              "'" -> dropFirstAndLast str
              _   -> str              
     _   -> str
+  
+      
  
 -- IMPLEMENT
 -- Change right hand side as you wish

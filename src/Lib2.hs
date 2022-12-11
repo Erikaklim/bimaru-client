@@ -8,6 +8,8 @@
 {-# HLINT ignore "Eta reduce" #-}
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 {-# HLINT ignore "Use if" #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module Lib2(
     State(..), emptyState, gameStart, render, mkCheck, toggle, hint, renderDocument
 ) where
