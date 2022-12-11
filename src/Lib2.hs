@@ -7,6 +7,7 @@
 {-# HLINT ignore "Use camelCase" #-}
 {-# HLINT ignore "Eta reduce" #-}
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
+{-# HLINT ignore "Use if" #-}
 module Lib2(
     State(..), emptyState, gameStart, render, mkCheck, toggle, hint, renderDocument
 ) where
@@ -211,10 +212,16 @@ baseTypes doc =
     DString [] -> "''"
     DString str -> 
       case readMaybeInt str of
-        Just a -> "'" ++ str ++ "'"
-        Nothing -> if (getSpaces str 0) == (length str)
-                   then ("'" ++ str ++ "'" )
-                   else (str)
+        Just a -> case (getSpaces str 0) == 0 of
+                    True -> case (getSpaces (reverse str) 0) == 0 of 
+                              True -> "'" ++ str ++ "'"
+                              False -> "'" ++ str ++ "'"
+                    False -> "'" ++ str ++ "'"
+        Nothing -> case head str of
+                  ' ' -> "'" ++ str ++ "'"
+                  _   -> case last str of
+                      ' ' -> "'" ++ str ++ "'"
+                      _   -> str
 
 getTabs :: Int -> String
 getTabs n 

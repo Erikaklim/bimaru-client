@@ -200,14 +200,16 @@ parseBaseType str = do
         "-" -> parseBaseType (drop 2 str)
         "null" -> Right (DNull, drop 4 str)
         _ -> case readMaybeInt firstElem of
-            Just a -> case isDigit (last (head (lines str))) of
-                        True -> case isDigit (head (head (lines str))) of
-                            True -> (parseDInteger str)
-                            False -> case (head (head (lines str))) of
-                              '-' -> (parseDInteger str)
-                              _   -> (parseDString str)
-                        False -> (parseDString str)
-            Nothing -> (parseDString str)
+            Just a -> case readMaybeInt (head (lines str)) of
+                        Just a -> case isDigit (last (head (lines str))) of
+                                    True -> case isDigit (head (head (lines str))) of
+                                              True -> (parseDInteger str)
+                                              False -> case (head (head (lines str))) of
+                                                        '-' -> parseDInteger str
+                                                        _   -> parseDString str
+                                    False -> parseDString str
+                        Nothing -> parseDString str
+            Nothing -> parseDString str
 
 parseDInteger :: String -> Either String (Document, String)
 parseDInteger str = (\(i, r) -> (DInteger i, r)) <$> parseInteger str
@@ -229,21 +231,22 @@ parseDString str = (\(i, r) -> (DString i, r)) <$> parseString str
 
 parseString :: String -> Either String (String, String)
 parseString [] = return ("", "")
-parseString str = 
-    case charToString (head (head (words str))) of 
-      "'" -> case charToString (last (head (words str))) of
+parseString str = do
+    let prefix = takeWhile (/='\n') str
+    case charToString (head prefix) of 
+      "'" -> case charToString (last prefix) of
           "'" -> do
                   let prefix = takeWhile (/='\n') str
-                  case readMaybeInt (dropFirstAndLast prefix) of
-                    Just a  -> return ((dropFirstAndLast prefix), drop (length prefix) str)
-                    Nothing -> case (getSpaces (dropFirstAndLast prefix) 0 ) == length (dropFirstAndLast prefix) of
-                        False -> return (prefix, drop (length prefix) str)
-                        True  -> return ((dropFirstAndLast prefix), drop (length prefix) str)
+                  return ((dropFirstAndLast prefix), drop (length prefix) str)
+                  -- case readMaybeInt (dropFirstAndLast prefix) of
+                  --   Just a  -> return ((dropFirstAndLast prefix), drop (length prefix) str)
+                  --   Nothing -> case (getSpaces (dropFirstAndLast prefix) 0 ) == length (dropFirstAndLast prefix) of
+                  --       False -> return (prefix, drop (length prefix) str)
+                  --       True  -> return ((dropFirstAndLast prefix), drop (length prefix) str)
           _   -> do
-                  let prefix = takeWhile (/='\n') str
-                  return (prefix, drop (length prefix) str)
+                  -- let prefix = takeWhile (/='\n') str
+                    return (prefix, drop (length prefix) str)
       _ -> do
-        let prefix = takeWhile (/='\n') str
         return (prefix, drop (length prefix) str)
 
 readMaybeInt :: String -> Maybe Int
