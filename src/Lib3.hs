@@ -66,7 +66,7 @@ parseComplexType str lvl = do
         "{}" -> parseDMap str spaces []
         _    -> case last (head (words str)) of  
               ':' -> parseDMap str spaces [] 
-              _   -> parseDList str spaces
+              _   -> parseDList str lvl
 
 parseDMap :: String -> Int -> [(String, Document)] -> Either String (Document, String)
 parseDMap str _ _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
@@ -75,7 +75,7 @@ parseDMap str lvl list = do
   case compare (getSpaces y1 0) 0 of
     EQ -> do 
         (x2, y2) <- startParse (drop 1 y1) 0
-        listM <- addElem (x1, x2) list y2
+        listM <- addElem ((remove'' x1), x2) list y2
         let next = drop (getNewLines y2 0) y2
         case next of
             "" -> Right (DMap (fst listM), next)
@@ -86,7 +86,7 @@ parseDMap str lvl list = do
                 _   -> return (DMap (fst listM), snd listM)
     _ -> do   
         (x2, y2) <- parseBaseType (drop 1 y1)
-        listM <- addElem (x1, x2) list y2
+        listM <- addElem ((remove'' x1), x2) list y2
         let next = drop (getNewLines y2 0) y2
         case next of
             "" -> Right (DMap (fst listM), next)
@@ -139,7 +139,7 @@ single str lvl = do
 
 multiple :: String -> Int -> Either String ([Document], String)
 multiple str lvl = do
-    (i1, r1) <- startParse str lvl
+    (i1, r1) <- startParse str ((countDashes str 0) * 2)
     (i2, r2) <- many r1 lvl fromSecond
     return (i1:i2, r2)
 
@@ -173,9 +173,13 @@ fromSecond str lvl = do
                       return (i, r2))
                 Nothing -> 
                     if getSpaces (drop (getNewLines r1 0) r1) 0 == lvl
-                    then ( do
-                        (i, r2) <- startParse (drop (lvl + 2) r1) lvl
-                        return (i, r2))
+                    then ( if (countDashes r1 0) > 1 
+                           then (do
+                            (i, r2) <- startParse (drop (lvl + 2) r1) (((countDashes r1 0) -1) * 2)
+                            return (i, r2))
+                           else (do
+                            (i, r2) <- startParse (drop (lvl + 2) r1) lvl
+                            return (i, r2)))
                     else ( 
                         if getSpaces (drop (getNewLines r1 0) r1) 0 < lvl
                         then (
@@ -244,8 +248,8 @@ parseString str = do
                   --       False -> return (prefix, drop (length prefix) str)
                   --       True  -> return ((dropFirstAndLast prefix), drop (length prefix) str)
           _   -> do
-                  -- let prefix = takeWhile (/='\n') str
-                    return (prefix, drop (length prefix) str)
+                  let prefix = takeWhile (/='\n') str
+                  return (prefix, drop (length prefix) str)
       _ -> do
         return (prefix, drop (length prefix) str)
 
@@ -273,7 +277,21 @@ charToString c = [c]
 dropFirstAndLast :: String -> String
 dropFirstAndLast str = drop 1 (take ((length str)-1) str)
 
+countDashes:: String -> Int -> Int
+countDashes [] dashes = dashes
+countDashes str dashes
+    | take 2 str == "- " = countDashes (drop 2 str) (dashes + 1)
+    | otherwise = dashes 
 
+remove'' :: String -> String 
+remove'' [] = []
+remove'' str = 
+  case charToString (head str) of
+    "'" -> case charToString (last str) of
+             "'" -> dropFirstAndLast str
+             _   -> str              
+    _   -> str
+ 
 -- IMPLEMENT
 -- Change right hand side as you wish
 -- You will have to create an instance of FromDocument
