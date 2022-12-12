@@ -15,7 +15,6 @@ import Data.Scientific as S
 import GHC.Generics
 import Data.String.Conversions
 
-import qualified Data.Map as Map
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen as Gen
 
@@ -79,7 +78,7 @@ arbitraryDocument = Gen.oneof [arbitraryDString, arbitraryDInteger, arbitraryDLi
 arbitraryDString :: Gen Document
 arbitraryDString = do
     s <- getSize
-    n <- choose (0, min 11 s)
+    n <- choose (0, min 16 s)
     DString <$> vectorOf n (oneof [arbitraryUpper, arbitraryLower, arbitraryDigit, return ' '])
 
 arbitraryUpper :: Gen Char
@@ -97,18 +96,18 @@ arbitraryDInteger = DInteger <$> arbitrary
 arbitraryDList :: Gen Document
 arbitraryDList = do
     s <- getSize
-    n <- choose (0, min 11 s)
+    n <- choose (0, min 4 s)
     DList <$> vectorOf n arbitraryDocument
 
 arbitraryDMap :: Gen Document
 arbitraryDMap = do
     s <- getSize
-    n <- choose (0, min 11 s)
-    DMap . Map.toList . Map.fromList <$> vectorOf n ((,) <$> arbitraryK <*> arbitraryDocument)
+    n <- choose (0, min 4 s)
+    DMap <$> vectorOf n ((,) <$> arbitraryK <*> arbitraryDocument)
     where
         arbitraryK = do
             s <- getSize
-            n <- choose (1, min 11 s)
+            n <- choose (1, min 10 s)
             vectorOf n (oneof [arbitraryUpper, arbitraryLower])
 
 class ToDocument a where

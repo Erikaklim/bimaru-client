@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Class(lift)

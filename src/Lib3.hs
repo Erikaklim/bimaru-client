@@ -193,9 +193,11 @@ fromSecond str lvl = do
                 Just a -> 
                     if lvl == (getSpaces a 0)
                     then (Left "List closes")
-                    else ( do
-                      (i, r2) <- startParse r1 0
-                      return (i, r2))
+                    else (if lvl > (getSpaces a 0) 
+                          then(Left "List closes")
+                          else(do
+                          (i, r2) <- startParse r1 0
+                          return (i, r2)) )
                 Nothing -> 
                     if getSpaces (drop (getNewLines r1 0) r1) 0 == lvl
                     then ( if (countDashes r1 0) > 1 
