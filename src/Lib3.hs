@@ -18,6 +18,7 @@ import Text.Read
 import Data.Char
 import Types ( Document (DNull, DList, DInteger, DMap, DString),FromDocument, fromDocument)
 import Lib1 (State(..),emptyState)
+import Lib2 (getTabs)
 import Data.Aeson (Array)
 import Data.Aeson.Encoding (list, string)
 import GHC.Generics (D)
@@ -32,14 +33,15 @@ parseDocument :: String -> Either String Document
 parseDocument str = (fst) <$> (dropTitle str)
 
 dropTitle :: String -> Either String (Document, String)
-dropTitle str = 
+dropTitle input = do
+  let str = convertString input [] 0 0
   case take 4 str of 
-  "---\n" -> case take 6 str of
+    "---\n" -> case take 6 str of
              "---\n-\n" -> do 
                (x, y) <- many (drop 3 str) 0 fromSecond
                return (DList x, y)
              _ -> startParse (drop 4 str ) 0
-  _ -> startParse str 0
+    _ -> startParse str 0
 
 startParse :: String -> Int -> Either String (Document, String)
 startParse str lvl = dataCheck (parseComplexType str lvl) (parseBaseType str)
@@ -314,8 +316,36 @@ remove'' str =
              "'" -> dropFirstAndLast str
              _   -> str              
     _   -> str
-  
-      
+
+
+convertString :: String -> String -> Int -> Int -> String
+convertString [] str2 lvl spaces = 
+  case take 4 str2 of
+    "---\n" -> str2
+    _       -> "---\n" ++ str2
+convertString (h:t) str2 lvl spaces = do
+  case take 4 (h:t) of
+    "---\n" -> convertString (drop 3 t) str2 lvl spaces
+    _ ->
+      case h of 
+      '-' -> case take 2 t of 
+             " -" -> case take 3 t of
+                     " - " -> convertString (drop 1 t) (str2 ++ (getTabs lvl) ++ "-\n") (lvl + 1) spaces
+                     _ -> case lvl > 0 of
+                          True -> convertString t (str2 ++ (getTabs (spaces `div` 2)) ++ (addToListEnd h (getTabs lvl))) 0 spaces
+                          False -> convertString t (str2 ++ (addToListEnd h (getTabs lvl))) 0 spaces
+             _    -> case (head t) of
+                     '\n' -> convertString t (addToListEnd h str2) 0 0
+                     _ -> case isDigit (head t) of
+                          False -> case lvl > 0 of
+                                   True ->  convertString (drop 1 t) (str2 ++ (getTabs lvl) ++ (getTabs (spaces `div` 2)) ++ "- ") 0 0
+                                   False ->  convertString (drop 1 t) (str2 ++ (getTabs lvl) ++ "- ") 0 0
+                          True -> convertString t (addToListEnd h str2) 0 0    
+      _   -> case h of
+             '\n' -> convertString t (addToListEnd h str2) 0 (getSpaces t 0)
+             ' ' -> convertString t (addToListEnd h str2) lvl spaces
+             _   -> convertString t (addToListEnd h str2) 0 0
+   
  
 -- IMPLEMENT
 -- Change right hand side as you wish
