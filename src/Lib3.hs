@@ -29,6 +29,8 @@ import Test.QuickCheck(quickCheck)
 -- IMPLEMENT
 -- Parses a document from yaml
 
+
+
 parseDocument :: String -> Either String Document
 parseDocument str = (fst) <$> (dropTitle str)
 
@@ -58,21 +60,23 @@ parseComplexType str lvl = do
     let spaces = getSpaces str 0
     case take 2 str of
         "\n " -> parseComplexType (drop 1 str) 0
-        "-\n" -> parseComplexType (drop 2 str) 0
+        "-\n" -> case lvl == 0 of
+                 True  -> parseDList str 0
+                 False -> parseComplexType (drop 2 str) 0
         "  " ->  
             case last (head (words str)) of
-                ':' -> parseDMap (drop spaces str) spaces []
-                _   -> 
-                    if spaces > lvl
-                    then parseDList (drop spaces str) spaces
-                    else (
-                      if spaces == lvl 
-                      then parseDList str spaces 
-                      else parseDList (drop (spaces + 2) str) spaces)
+            ':' -> parseDMap (drop spaces str) spaces []
+            _   -> 
+                  if spaces > lvl
+                  then parseDList (drop spaces str) spaces
+                  else (
+                    if spaces == lvl 
+                    then parseDList (drop spaces str) spaces 
+                    else parseDList (drop (spaces + 2) str) spaces)
         "{}" -> parseDMap str spaces []
         _    -> case last (head (words str)) of  
-              ':' -> parseDMap str spaces [] 
-              _   -> parseDList str lvl
+                ':' -> parseDMap str lvl [] 
+                _   -> parseDList str lvl
 
 parseDMap :: String -> Int -> [(String, Document)] -> Either String (Document, String)
 parseDMap str _ _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
@@ -80,7 +84,7 @@ parseDMap str lvl list = do
   (x1, y1) <- readFirst str
   case compare (getSpaces y1 0) 0 of
     EQ -> do 
-        (x2, y2) <- startParse (drop 1 y1) 0
+        (x2, y2) <- startParse (drop 1 y1) lvl
         listM <- addElem ((remove'' x1), x2) list y2
         let next = drop (getNewLines y2 0) y2
         case next of
@@ -91,7 +95,7 @@ parseDMap str lvl list = do
                     then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
                     else (
                         if lvl < (getSpaces next 0)
-                        then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
+                        then (parseDMap (drop (getSpaces next 0) next) (getSpaces next 0) (fst listM))
                         else (return (DMap (fst listM), snd listM)))
                 _   -> return (DMap (fst listM), snd listM)
 
@@ -107,7 +111,7 @@ parseDMap str lvl list = do
                     then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
                     else (
                         if lvl < (getSpaces next 0)
-                        then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
+                        then (parseDMap (drop (getSpaces next 0) next) (getSpaces next 0) (fst listM))
                         else (return (DMap (fst listM), snd listM)))
                 _   -> return (DMap (fst listM), snd listM)
 
@@ -149,27 +153,15 @@ elems str lvl = do
 
 single :: String -> Int -> Either String ([Document], String)
 single str lvl = do
-    if (countDashes str 0) < lvl
-    then (do
-      (i, r) <- startParse str lvl
-      return ([i], r))
-    else (do
-      (i, r) <- startParse str ((countDashes str 0) * 2)
-      return ([i], r))
+  (i, r) <- startParse str lvl
+  return ([i], r)
 
 multiple :: String -> Int -> Either String ([Document], String)
 multiple str lvl = do
-    if (countDashes str 0) < lvl
-    then (do
-        (i1, r1) <- startParse str lvl
-        (i2, r2) <- many r1 lvl fromSecond
-        return (i1:i2, r2))
-    else(do
-        (i1, r1) <- startParse str ((countDashes str 0) * 2)
-        (i2, r2) <- many r1 lvl fromSecond
-        return (i1:i2, r2))
+  (i1, r1) <- startParse str lvl
+  (i2, r2) <- many r1 lvl fromSecond
+  return (i1:i2, r2)
     
-
 many :: String -> Int -> (String -> Int -> Either String (a, String)) -> Either String ([a], String)
 many str lvl parser = many' str []
     where
@@ -198,7 +190,7 @@ fromSecond str lvl = do
                     else (if lvl > (getSpaces a 0) 
                           then(Left "List closes")
                           else(do
-                          (i, r2) <- startParse r1 0
+                          (i, r2) <- startParse a 0
                           return (i, r2)) )
                 Nothing -> 
                     if getSpaces (drop (getNewLines r1 0) r1) 0 == lvl
@@ -317,7 +309,6 @@ remove'' str =
              _   -> str              
     _   -> str
 
-
 convertString :: String -> String -> Int -> Int -> String
 convertString [] str2 lvl spaces = 
   case take 4 str2 of
@@ -330,7 +321,9 @@ convertString (h:t) str2 lvl spaces = do
       case h of 
       '-' -> case take 2 t of 
              " -" -> case take 3 t of
-                     " - " -> convertString (drop 1 t) (str2 ++ (getTabs lvl) ++ "-\n") (lvl + 1) spaces
+                     " - " -> case lvl > 0 of
+                              False -> convertString (drop 1 t) (str2 ++ (getTabs lvl) ++ "-\n") (lvl + 1) spaces
+                              True -> convertString (drop 1 t) (str2 ++ (getTabs (spaces `div` 2)) ++ (getTabs lvl) ++ "-\n") (lvl + 1) spaces 
                      _ -> case lvl > 0 of
                           True -> convertString t (str2 ++ (getTabs (spaces `div` 2)) ++ (addToListEnd h (getTabs lvl))) 0 spaces
                           False -> convertString t (str2 ++ (addToListEnd h (getTabs lvl))) 0 spaces
