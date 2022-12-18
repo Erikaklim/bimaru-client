@@ -11,7 +11,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 module Lib2(
-    State(..), emptyState, gameStart, render, mkCheck, toggle, hint, renderDocument
+    State(..), emptyState, gameStart, render, mkCheck, toggle, hint, renderDocument, getTabs
 ) where
 
 import System.IO
