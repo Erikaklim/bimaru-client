@@ -67,15 +67,29 @@ parseComplexType str lvl = do
             ':' -> parseDMap (drop spaces str) spaces []
             _   -> 
                   if spaces > lvl
-                  then parseDList (drop spaces str) spaces
+                  then (parseDList (drop spaces str) spaces)
                   else (
                     if spaces == lvl 
-                    then parseDList (drop spaces str) spaces 
-                    else parseDList (drop (spaces + 2) str) spaces)
+                    then (parseDList (drop spaces str) spaces) 
+                    else (
+                      if last (head (tail (words str))) == ':'
+                      then (parseDList (drop spaces str) lvl)
+                      else (parseDList (drop (spaces + 2) str) spaces)))
         "{}" -> parseDMap str spaces []
         _    -> case last (head (words str)) of  
                 ':' -> parseDMap str lvl [] 
                 _   -> parseDList str lvl
+
+choseLvl:: String -> Int -> Int 
+choseLvl str lvl =
+  if (head (words str) == "-")
+  then (if (take 3 str) == "\n-\n"
+        then (lvl)
+        else ( 
+          if last ( head ( tail ( words str))) == ':'
+          then ((getSpaces (tail str) 0) + 2)
+          else (getSpaces (tail str) 0)))
+  else (lvl)
 
 parseDMap :: String -> Int -> [(String, Document)] -> Either String (Document, String)
 parseDMap str _ _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
@@ -83,7 +97,7 @@ parseDMap str lvl list = do
   (x1, y1) <- readFirst str
   case compare (getSpaces y1 0) 0 of
     EQ -> do 
-        (x2, y2) <- startParse (drop 1 y1) lvl
+        (x2, y2) <- startParse (drop 1 y1) (choseLvl y1 lvl)
         listM <- addElem ((remove'' x1), x2) list y2
         let next = drop (getNewLines y2 0) y2
         case next of

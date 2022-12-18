@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use bimap" #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
 module Types (
     Document(..), Check(..), Coord(..),
     ToDocument, toDocument,
@@ -19,6 +20,7 @@ import Data.String.Conversions
 
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen as Gen
+import qualified Data.Map as Map
 
 -- Data structure used to post ship allocations
 -- to game server (for check). Do not modify.
@@ -80,7 +82,7 @@ arbitraryDocument = Gen.oneof [arbitraryDString, arbitraryDInteger, arbitraryDLi
 arbitraryDString :: Gen Document
 arbitraryDString = do
     s <- getSize
-    n <- choose (0, min 16 s)
+    n <- choose (0, min 1 1)
     DString <$> vectorOf n (oneof [arbitraryUpper, arbitraryLower, arbitraryDigit, return ' '])
 
 arbitraryUpper :: Gen Char
@@ -98,18 +100,18 @@ arbitraryDInteger = DInteger <$> arbitrary
 arbitraryDList :: Gen Document
 arbitraryDList = do
     s <- getSize
-    n <- choose (0, min 4 s)
+    n <- choose (0, min 1 1)
     DList <$> vectorOf n arbitraryDocument
 
 arbitraryDMap :: Gen Document
 arbitraryDMap = do
     s <- getSize
     n <- choose (0, min 4 s)
-    DMap <$> vectorOf n ((,) <$> arbitraryK <*> arbitraryDocument)
+    DMap . Map.toList . Map.fromList <$> vectorOf n ((,) <$> arbitraryK <*> arbitraryDocument)
     where
         arbitraryK = do
             s <- getSize
-            n <- choose (1, min 10 s)
+            n <- choose (0, min 1 1)
             vectorOf n (oneof [arbitraryUpper, arbitraryLower])
 
 class ToDocument a where
