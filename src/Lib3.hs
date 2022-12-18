@@ -26,10 +26,9 @@ import Data.List (stripPrefix)
 import Data.Vector.Internal.Check (check)
 import Test.QuickCheck(quickCheck)
 
+
 -- IMPLEMENT
 -- Parses a document from yaml
-
-
 
 parseDocument :: String -> Either String Document
 parseDocument str = (fst) <$> (dropTitle str)
@@ -194,13 +193,19 @@ fromSecond str lvl = do
                           return (i, r2)) )
                 Nothing -> 
                     if getSpaces (drop (getNewLines r1 0) r1) 0 == lvl
-                    then ( if (countDashes r1 0) > 1 
+                    then ( if (lvl == 0) && (last (head (tail (words r1))) == ':')
                            then (do
-                            (i, r2) <- startParse (drop (lvl + 2) r1) (lvl + (((countDashes r1 0) -1) * 2))
+                            (i, r2) <- startParse (drop (lvl + 2) r1) (lvl + 2)
                             return (i, r2))
-                           else (do
-                            (i, r2) <- startParse (drop (lvl + 2) r1) lvl
-                            return (i, r2)))
+                           else (
+                             if (head (words r1)) == "-" && (last (head (tail (words r1))) == ':') 
+                             then (do
+                              (i, r2) <- startParse (drop (lvl + 2) r1) (lvl + 2)
+                              return (i, r2))
+                             else (do
+                              (i, r2) <- startParse (drop (lvl + 2) r1) lvl
+                              return (i, r2))))
+                            
                     else ( 
                         if getSpaces (drop (getNewLines r1 0) r1) 0 < lvl
                         then (
