@@ -14,8 +14,8 @@
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 module Lib3(hint, gameStart, parseDocument, GameStart, Hint) where
 
-import Text.Read
-import Data.Char
+import Text.Read ( readMaybe )
+import Data.Char ( isDigit, isSpace )
 import Types ( Document (DNull, DList, DInteger, DMap, DString),FromDocument, fromDocument)
 import Lib1 (State(..),emptyState)
 import Lib2 (getTabs)
@@ -26,33 +26,37 @@ import Data.List (stripPrefix)
 import Data.Vector.Internal.Check (check)
 import Test.QuickCheck(quickCheck)
 
-
--- IMPLEMENT
--- Parses a document from yaml
-
+-- Document parser (convert from yaml file given as a string to Document)
 parseDocument :: String -> Either String Document
 parseDocument str = (fst) <$> (dropTitle str)
 
+-- The starting point of parser, if string is given with "---\n" in the begging drops it 
 dropTitle :: String -> Either String (Document, String)
 dropTitle input = do
   let str = convertString input [] 0 0
   case take 4 str of 
-    "---\n" -> case take 6 str of
-             "---\n-\n" -> do 
-               (x, y) <- many (drop 3 str) 0 fromSecond
-               return (DList x, y)
-             _ -> startParse (drop 4 str ) 0
-    _ -> startParse str 0
+   "---\n" -> case take 6 str of
+               "---\n-\n" -> do 
+                    (x, y) <- many (drop 3 str) 0 fromSecond
+                    return (DList x, y)
+               _ -> startParse (drop 4 str ) 0
+   _ -> startParse str 0
 
+-- Function identifying if next value that is going to be parsed is:
+-- base type value    - Integer, String, Char, etc., or if it is
+-- complex type value - Map, List 
 startParse :: String -> Int -> Either String (Document, String)
 startParse str lvl = dataCheck (parseComplexType str lvl) (parseBaseType str)
 
+-- Function identifies value given to parser, it tries to parse value as if it is complex type,
+-- and if parser fails, only then it tries to parse it as simple type value
 dataCheck :: Either String (a, String) -> Either String (a, String) -> Either String (a, String)
 dataCheck parser1 parser2 =
     case parser1 of
-        Right a -> Right a
-        Left _ -> parser2
+    Right a -> Right a
+    Left _ -> parser2
 
+-- Function identifies if given value is List or Map and its depth (which is notated as lvl)
 parseComplexType :: String -> Int -> Either String (Document, String)
 parseComplexType str _ | (getSpaces str 0) == (length str) = Left "Empty string"
 parseComplexType str lvl = do
@@ -80,17 +84,7 @@ parseComplexType str lvl = do
                 ':' -> parseDMap str lvl [] 
                 _   -> parseDList str lvl
 
-choseLvl:: String -> Int -> Int 
-choseLvl str lvl =
-  if (head (words str) == "-")
-  then (if (take 3 str) == "\n-\n"
-        then (lvl)
-        else ( 
-          if last ( head ( tail ( words str))) == ':'
-          then ((getSpaces (tail str) 0) + 2)
-          else (getSpaces (tail str) 0)))
-  else (lvl)
-
+-- Function parses given yaml Map value as DMap 
 parseDMap :: String -> Int -> [(String, Document)] -> Either String (Document, String)
 parseDMap str _ _ | head (words str) == "{}" = Right (DMap [], drop 2 str)
 parseDMap str lvl list = do
@@ -103,7 +97,6 @@ parseDMap str lvl list = do
         case next of
             "" -> Right (DMap (fst listM), next)
             _  -> case last (head (words next)) of
-                --':' -> parseDMap (drop (getSpaces next 0) next) lvl (fst listM)
                 ':' -> if lvl == (getSpaces next 0)
                     then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
                     else (
@@ -119,7 +112,6 @@ parseDMap str lvl list = do
         case next of
             "" -> Right (DMap (fst listM), next)
             _  -> case last (head (words next)) of
-               --':' -> parseDMap (drop (getSpaces next 0) next) lvl (fst listM)
                 ':' -> if lvl == (getSpaces next 0)
                     then (parseDMap (drop (getSpaces next 0) next) lvl (fst listM))
                     else (
@@ -128,16 +120,18 @@ parseDMap str lvl list = do
                         else (return (DMap (fst listM), snd listM)))
                 _   -> return (DMap (fst listM), snd listM)
 
+-- Function used in parseDMap function to store the parsed value and the remaining string inside the tuple  
 addElem :: a -> [a] -> String -> Either String ([a], String)
 addElem tuple list left = Right ((addToListEnd tuple list), left)  
 
+-- Function used in parseDMap function to get the key value of Map
 readFirst :: String -> Either String (String, String)
 readFirst str = do
   let s = reverse (head (words str)) 
       l = length s
   return (reverse (drop 1 s), drop l str)
 
-
+-- Function parses given yaml List value as DList
 parseDList :: String -> Int -> Either String (Document, String)
 parseDList str lvl | head (words str) == "[]" = Right (DList [], drop 2 str)
 parseDList str lvl = do
@@ -153,28 +147,33 @@ parseDList str lvl = do
               _ -> return (DList a, l:x3)
           Nothing -> return (DList [], x3)
 
+-- Function identifies if at current depth of List is one or more elements
 optional :: String -> Int -> (String -> Int -> Either String (a, String)) -> Either String (Maybe a, String)
 optional str lvl parser =
     case parser str lvl of
         Left e -> Right (Nothing, str)
         Right (i, r) -> Right (Just i, r)
 
+-- Function identifies if there is single or multiple elements in the current depth of the list
 elems :: String -> Int -> Either String ([Document], String)
 elems str lvl = do 
     (i, r) <- dataCheck (multiple str lvl) (single str lvl)
     return (i, r)
 
+-- Function parses List with single element 
 single :: String -> Int -> Either String ([Document], String)
 single str lvl = do
   (i, r) <- startParse str lvl
   return ([i], r)
 
+-- Function parses List with multiple elements
 multiple :: String -> Int -> Either String ([Document], String)
 multiple str lvl = do
   (i1, r1) <- startParse str lvl
   (i2, r2) <- many r1 lvl fromSecond
   return (i1:i2, r2)
     
+-- Function handles multielement List    
 many :: String -> Int -> (String -> Int -> Either String (a, String)) -> Either String ([a], String)
 many str lvl parser = many' str []
     where
@@ -187,6 +186,8 @@ many str lvl parser = many' str []
                 Left e -> Right (reverse acc, s)
                 Right (i, r) -> many' r (i:acc)
 
+-- Function accesesed when List contains at least two elements, handles changes of the List depth and parses 
+-- List elements starting from second
 fromSecond :: String -> Int -> Either String (Document, String)
 fromSecond str lvl | str == "\n" = Left "End of the file"
                    | str == "" = Left "End of the file"
@@ -228,11 +229,13 @@ fromSecond str lvl = do
                         (i, r2) <- startParse r1 lvl
                         return (i, r2)))
 
+-- Function to parse single char
 parseChar :: Char -> String -> Either String (Char, String)
 parseChar ch [] = Right (' ', "")
 parseChar ch (x:xs) | ch == x = Right (x, xs)
                     | otherwise = Left $ ch :" expected"
 
+-- Function to parse base type values
 parseBaseType :: String -> Either String (Document, String)
 parseBaseType str | (getSpaces str 0) == (length str) = Right (DString str, "")
                   | head (words str) == "''" = Right (DString "", drop 2 str)
@@ -241,84 +244,88 @@ parseBaseType str | (getSpaces str 0) == (length str) = Right (DString str, "")
 parseBaseType str = do
     let firstElem = head (words str)
     case firstElem of
-        "-" -> parseBaseType (drop 2 str)
-        "null" -> Right (DNull, drop 4 str)
-        _ -> case readMaybeInt firstElem of
-            Just a -> case readMaybeInt (head (lines str)) of
-                        Just a -> case isDigit (last (head (lines str))) of
-                                    True -> case isDigit (head (head (lines str))) of
-                                              True -> (parseDInteger str)
-                                              False -> case (head (head (lines str))) of
-                                                        '-' -> parseDInteger str
-                                                        _   -> parseDString str
-                                    False -> parseDString str
-                        Nothing -> parseDString str
-            Nothing -> parseDString str
+     "-"    -> parseBaseType (drop 2 str)
+     "null" -> Right (DNull, drop 4 str)
+     _      -> case readMaybeInt firstElem of
+                Just a -> case readMaybeInt (head (lines str)) of
+                           Just a -> case isDigit (last (head (lines str))) of
+                                      True -> case isDigit (head (head (lines str))) of
+                                               True -> (parseDInteger str)
+                                               False -> case (head (head (lines str))) of
+                                                         '-' -> parseDInteger str
+                                                         _   -> parseDString str
+                                      False -> parseDString str
+                           Nothing -> parseDString str
+                Nothing -> parseDString str
 
+-- Function parses DString 
 parseDInteger :: String -> Either String (Document, String)
 parseDInteger str = (\(i, r) -> (DInteger i, r)) <$> parseInteger str
 
+-- Function parses Integer
 parseInteger :: String -> Either String (Int, String)
 parseInteger ('-':xs) = do
     let prefix = takeWhile isDigit xs
     case prefix of
-      [] -> Left "Error: Empty integer"
-      _ -> Right (read ('-':prefix), drop (length prefix + 1) ('-':xs))
+     [] -> Left "Error: Empty integer"
+     _ -> Right (read ('-':prefix), drop (length prefix + 1) ('-':xs))
 parseInteger str = do
     let prefix = takeWhile isDigit str
     case prefix of
-      [] -> Left "Error: Empty integer"
-      _ -> Right (read prefix, drop (length prefix) str)
+     [] -> Left "Error: Empty integer"
+     _ -> Right (read prefix, drop (length prefix) str)
 
+-- Function parses DString 
 parseDString :: String -> Either String (Document, String)
 parseDString str = (\(i, r) -> (DString i, r)) <$> parseString str
 
+-- Funtion parses String 
 parseString :: String -> Either String (String, String)
 parseString [] = return ("", "")
 parseString str = do
     let prefix = takeWhile (/='\n') str
     case charToString (head prefix) of 
-      "'" -> case charToString (last prefix) of
-          "'" -> do
-                  let prefix = takeWhile (/='\n') str
-                  return ((dropFirstAndLast prefix), drop (length prefix) str)
-          _   -> do
-                  let prefix = takeWhile (/='\n') str
-                  return (prefix, drop (length prefix) str)
-      _ -> do
+     "'" -> case charToString (last prefix) of
+             "'" -> do
+                   let prefix = takeWhile (/='\n') str
+                   return ((dropFirstAndLast prefix), drop (length prefix) str)
+             _   -> do
+                   let prefix = takeWhile (/='\n') str
+                   return (prefix, drop (length prefix) str)
+     _ -> do
         return (prefix, drop (length prefix) str)
 
+-- Function identifies if given String is Integer
 readMaybeInt :: String -> Maybe Int
 readMaybeInt = readMaybe
 
+-- Function counts number of spaces from beggining until first non-space char
 getSpaces :: String -> Int -> Int
 getSpaces [] spaces = spaces
 getSpaces (h:t) spaces
     | h == ' ' = getSpaces t (spaces + 1)
     | otherwise = spaces
 
+-- Function counts number of newLines from beggining until first non-newLine char
 getNewLines :: String -> Int -> Int
 getNewLines [] newLines = newLines
 getNewLines (h:t) newLines
     | h == '\n' = getNewLines t (newLines + 1)
     | otherwise = newLines
 
+-- Function adds single element to the end of the List
 addToListEnd :: a -> [a] -> [a]
 addToListEnd a xs = xs ++ [a]
 
+-- Function converts Char to String 
 charToString :: Char -> String
 charToString c = [c]
 
+-- Function drops the first and the last element of the given String 
 dropFirstAndLast :: String -> String
 dropFirstAndLast str = drop 1 (take ((length str)-1) str)
 
-countDashes:: String -> Int -> Int
-countDashes [] dashes = dashes
-countDashes str dashes
-    | take 2 str == "- " = countDashes (drop 2 str) (dashes + 1)
-    | take 2 str == "  " = countDashes (drop 2 str) dashes
-    | otherwise = dashes 
-
+-- Function removes quatation marks from given String 
 remove'' :: String -> String 
 remove'' [] = []
 remove'' str = 
@@ -328,6 +335,21 @@ remove'' str =
              _   -> str              
     _   -> str
 
+-- Function used to identifie the depth of complex type value in parseDMap function when next
+-- Map element is complex type  
+choseLvl:: String -> Int -> Int 
+choseLvl str lvl =
+  if (head (words str) == "-")
+  then (if (take 3 str) == "\n-\n"
+        then (lvl)
+        else ( 
+          if last ( head ( tail ( words str))) == ':'
+          then ((getSpaces (tail str) 0) + 2)
+          else (getSpaces (tail str) 0)))
+  else (lvl)
+
+-- Function converts given yaml file as string to single-dash yaml file format:
+-- for example, if given string is "- - - 1" it converts it to "---\n-\n  -\n    - 1"
 convertString :: String -> String -> Int -> Int -> String
 convertString [] str2 lvl spaces = 
   case take 4 str2 of
@@ -358,7 +380,6 @@ convertString (h:t) str2 lvl spaces = do
              ' ' -> convertString t (addToListEnd h str2) lvl spaces
              _   -> convertString t (addToListEnd h str2) 0 0
    
- 
 -- IMPLEMENT
 -- Change right hand side as you wish
 -- You will have to create an instance of FromDocument

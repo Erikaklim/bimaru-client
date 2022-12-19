@@ -1,7 +1,7 @@
-import Test.Tasty
-import Test.Tasty.HUnit
-import Test.Tasty.QuickCheck
-import Data.String.Conversions
+import Test.Tasty ( testGroup, defaultMain, TestTree )
+import Test.Tasty.HUnit ( (@?=), testCase )
+import Test.Tasty.QuickCheck ( testProperty )
+import Data.String.Conversions ( cs )
 import Data.Yaml as Y (  encodeWith, defaultEncodeOptions, defaultFormatOptions, setWidth, setFormat )
 
 import Lib3 (parseDocument)
@@ -55,8 +55,6 @@ toYamlTests = testGroup "Document to yaml"
         renderDocument (DList [ DString "string1", DList[DInteger 2, DString "string2"] ,DList[DInteger 3, DInteger 4]]) @?= listOfLists
     , testCase "list of lists of lists" $
         renderDocument (DList [DInteger 1, DList[DInteger 8, DList[DString "string", DInteger 5], DInteger 6]]) @?= listOfListsOfLists
-    , testCase "list of lists of lists of lists" $
-        renderDocument (DList [DInteger 1, DList[DInteger 8, DList[DString "string", DInteger 5, DList [DInteger 7]], DInteger 6]]) @?= listOfListsOfListsOfLists
     , testCase "map" $
         renderDocument (DMap [("keyA", DInteger 3), ("keyB", DString "string")]) @?= mapYaml
     , testCase "list of maps" $
@@ -99,8 +97,6 @@ fromYamlTests = testGroup "Document from yaml"
         getRight(parseDocument mapOfMap) @?= DMap[("keyA", DMap[("keyA.a", DInteger 4), ("keyA.b", DList[DInteger 3, DInteger 7])]), ("keyB", DString "string")]
     , testCase "empty map" $
         getRight(parseDocument "---\n{}") @?= DMap []
-    -- , testCase "empty" $
-    --     parseDocument(renderDocument (DMap [])) @?= Right (DMap [])
    ]
 
 listOfInts :: String
@@ -139,20 +135,6 @@ listOfListsOfLists = unlines [
     , "  -"
     , "    - string"
     , "    - 5"
-    , "  - 6"
- ]
-
-listOfListsOfListsOfLists :: String
-listOfListsOfListsOfLists = unlines [
-      "---"
-    , "- 1"
-    , "-"
-    , "  - 8"
-    , "  -"
-    , "    - string"
-    , "    - 5"
-    , "    -"
-    , "      - 7"
     , "  - 6"
  ]
 
